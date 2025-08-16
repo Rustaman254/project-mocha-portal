@@ -1,0 +1,63 @@
+TreeFarm System Deployment Summary
+=====================================
+Deployed at: 2025-08-11T14:57:19.983Z
+Network: scrollSepolia (Chain ID: 534351)
+Deployer: 0xf4BEEAa146ddEA7B42F36C8b8cdFd57cc2BbD5Fa
+
+NOTE: FarmShareToken contracts are NOT deployed at this stage.
+They are created dynamically when calling addFarm on the MTTR vault.
+
+TOKEN CONTRACTS:
+================
+MochaBeanToken: 0xb75083585DcB841b8B04ffAC89c78a16f2a5598B
+MochaLandToken: 0x5DEbebba8a4dABCb6B6e31ee848E8B87Ea357980
+MochaTreeToken: 0xd9AB9d286F73073d770d1aA9115842e29bcA6618
+MochaTreeRightsToken: 0x8f95C4d74997AD4aE79A312475A4852847C4FA7D
+MTTR_Config: [object Object]
+
+DIAMOND:
+========
+TreeFarmDiamond: 0x70e86AE39039B25853877351f86f76ef1F124486
+Vault: [object Object]
+TokenAddresses: [object Object]
+
+FACETS:
+=======
+DiamondCutFacet: 0x63752eF01bCd1D2C537FAAe672F2c52F27D870dA
+DiamondLoupeFacet: 0x61B032468777239e3169B0Af489595AE93D387f8
+OwnershipFacet: 0x370Be5E97e188C5FB4E74833D6714AF0CB9D1719
+InitializationFacet: 0x050534Ba2Cde7880b6D430CFe153F8c6bF39e8b8
+FarmManagementFacet: 0x948f91C82540df9A67921bC89f9eC9C92cf934a8
+TreeManagementFacet: 0x6940fb44258A1f801B2E5D52577adaa1c9BF4261
+YieldManagementFacet: 0xb29B809Cc64578C0006F20943f7fBC71856E9E32
+BondManagementFacet: 0x0ce6d9F83E97c3b9D43DcE0c1b5D2DFE50b9d6bf
+MultiTrancheVaultFacet: 0x81B143C76F284958C70c6a34741ad747ec27d668
+FarmShareTokenFacet: 0x3b2156AC54A70D3840CE3EB656754E807bf769E6
+
+UTILITIES:
+==========
+ERC6551AccountImplementation: 0x8Ef779d35d1B29f0F9f3676a1eD40774A5a191f3
+ERC6551Registry: 0x10A496a57D9758B54310940C5B23Ee92F12Ca921
+MTTRBondLib: 0xED5b445B54a6332C0aB3E341A8C7C51281330FDa
+MTTRFarmLib: 0xB7413fc46d93F2AB15dE8F1CE468D4374D2Ab02D
+MTTRYieldLib: 0x524247bf5E18aA160Eb01489d7Aa68C7255cD026
+
+VAULT (MTTR)
+===========
+mttrVault: 0x8f95C4d74997AD4aE79A312475A4852847C4FA7D
+mbtToken: 0xb75083585DcB841b8B04ffAC89c78a16f2a5598B
+initialized: true
+totalFarms: 0
+totalActiveBonds: 0
+shareTokens: Created on-demand per farm via addFarm()
+
+DIAMOND TOKEN ADDRESSES:
+========================
+MTT Token: 0xd9AB9d286F73073d770d1aA9115842e29bcA6618
+MLT Token: 0x5DEbebba8a4dABCb6B6e31ee848E8B87Ea357980
+MBT Token: 0xb75083585DcB841b8B04ffAC89c78a16f2a5598B
+System Initialized: true
+Vault Initialized: true
+
+💡 To update token addresses, use:
+   npx hardhat run scripts/update-diamond-token-addresses.js --network scrollSepolia --show-current
