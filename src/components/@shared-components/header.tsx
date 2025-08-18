@@ -1,8 +1,5 @@
 import { useEffect, useState } from "react"
-import {
-  Moon,
-  Sun,
-} from "lucide-react"
+import { Moon, Sun, Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import Link from "next/link"
@@ -24,6 +21,7 @@ const NAV_LINKS = [
 export default function Header() {
   const { address: userAddress, isConnected } = useAccount();
   const [darkMode, setDarkMode] = useState(true)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   const { open } = useAppKit()
 
@@ -47,7 +45,10 @@ export default function Header() {
     setDarkMode(!darkMode)
   }
 
-  // Add debugging and error handling
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen)
+  }
+
   const { 
     data: mbtBalance, 
     error: mbtError,
@@ -95,24 +96,6 @@ export default function Header() {
     },
   });
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Debug Info:', {
-      isConnected,
-      userAddress,
-      chainId: scrollSepolia.id,
-      mbtBalance,
-      mbtError,
-      mbtLoading,
-      totalActiveBonds,
-      bondsError,
-      bondsLoading,
-      totalValueLocked,
-      tvlError,
-      tvlLoading,
-    });
-  }, [isConnected, userAddress, mbtBalance, mbtError, mbtLoading, totalActiveBonds, bondsError, bondsLoading, totalValueLocked, tvlError, tvlLoading]);
-
   const formatMbtBalance = (): string => {
     if (mbtLoading) return "Loading...";
     if (mbtError) return "Error";
@@ -136,17 +119,19 @@ export default function Header() {
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50 bg-[transparent] dark:bg-[transparent]">
-      <div className="mx-auto flex items-center justify-between py-4 px-12">
-        <div className="flex items-center space-x-4">
+      <div className="mx-auto flex items-center justify-between py-4 px-4 sm:px-6 lg:px-12">
+        {/* Logo and stats */}
+        <div className="flex items-center space-x-2 sm:space-x-4">
           <Image
             src={darkMode ? "/Brand/mocha-white.svg" : "/Brand/mocha-brown.png"}
             alt="Project Logo"
-            width={78}
-            height={78}
+            width={60}
+            height={60}
             className="object-fit"
           />
 
-          <div className="flex items-center gap-3 text-sm">
+          {/* Stats - hidden on mobile */}
+          <div className="hidden md:flex items-center gap-3 text-sm">
             <StatRectangle 
               label="My MBT Balance" 
               value={`${formatMbtBalance()} MBT`} 
@@ -165,7 +150,8 @@ export default function Header() {
           </div>
         </div>
 
-        <div className="flex items-center space-x-6">
+        {/* Desktop navigation */}
+        <div className="hidden md:flex items-center space-x-4">
           <nav className="border dark:border-gray-800 bg-white dark:bg-gray-800 bg-gray-300 rounded-full px-6 py-2">
             <div className="flex items-center space-x-2">
               {NAV_LINKS.filter(link => link.enabled).map((link) => (
@@ -181,6 +167,24 @@ export default function Header() {
             </div>
           </nav>
 
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleDarkMode}
+              className="rounded-full bg-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5 text-gray-700" />}
+            </Button>
+
+            <appkit-button />
+          </div>
+        </div>
+
+        {/* Mobile menu button and wallet - all buttons together */}
+        <div className="flex md:hidden items-center space-x-2">
+          <appkit-button className="mr-2" />
+          
           <Button
             variant="outline"
             size="icon"
@@ -190,9 +194,70 @@ export default function Header() {
             {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5 text-gray-700" />}
           </Button>
 
-          <appkit-button />
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={toggleMobileMenu}
+            className="rounded-full bg-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
         </div>
       </div>
+
+      {/* Enhanced Mobile Menu (without wallet button) */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-white dark:bg-gray-900 shadow-xl rounded-b-2xl mx-4 border dark:border-gray-700 overflow-hidden">
+          {/* Stats Cards */}
+          <div className="p-4 bg-gray-100 dark:bg-gray-800">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm border dark:border-gray-600">
+                <StatRectangle 
+                  label="My MBT" 
+                  value={`${formatMbtBalance()} MBT`} 
+                  valueColor="text-green-400" 
+                  className="text-xs"
+                  compact
+                />
+              </div>
+              <div className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm border dark:border-gray-600">
+                <StatRectangle 
+                  label="TVL" 
+                  value={`${formatTotalValueLocked()} MBT`}
+                  valueColor="text-green-400" 
+                  className="text-xs"
+                  compact
+                />
+              </div>
+              <div className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm border dark:border-gray-600 col-span-2">
+                <StatRectangle 
+                  label="Active Bonds" 
+                  value={`${formatTotalActiveBonds()}`}
+                  valueColor="text-green-400" 
+                  className="text-xs"
+                  compact
+                />
+              </div>
+            </div>
+          </div>
+          
+          {/* Navigation Links */}
+          <nav className="flex flex-col p-2">
+            {NAV_LINKS.filter(link => link.enabled).map((link) => (
+              <Link key={link.label} href={link.href} onClick={() => setMobileMenuOpen(false)}>
+                <button
+                  className={`w-full px-4 py-3 rounded-lg flex items-center transition-colors my-1
+                    ${pathname === link.href 
+                      ? "bg-[#522912] dark:bg-gray-700 text-white font-semibold" 
+                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"}`}
+                >
+                  {link.label}
+                </button>
+              </Link>
+            ))}
+          </nav>
+        </div>
+      )}
     </div>
   )
 }
