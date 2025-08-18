@@ -9,6 +9,7 @@ interface StatCardProps {
   isLoading?: boolean;
   iconColor?: 'green' | 'red' | 'yellow';
   icon?: IconName;
+  compact?: boolean; // New prop for compact view
 }
 
 const StatCard: React.FC<StatCardProps> = ({
@@ -17,6 +18,7 @@ const StatCard: React.FC<StatCardProps> = ({
   isLoading = false,
   iconColor = 'green',
   icon = 'Coffee',
+  compact = false, // Default to false
 }) => {
   const colorStyles: Record<
     NonNullable<StatCardProps['iconColor']>,
@@ -46,21 +48,45 @@ const StatCard: React.FC<StatCardProps> = ({
 
   const IconComponent = icons[icon];
 
+  // Responsive padding and sizing
   return (
-    <div className="border dark:border-gray-800 rounded-lg p-4 bg-white dark:bg-gray-800">
-      <div className="flex items-center mb-2">
+    <div className={`
+      border dark:border-gray-800 rounded-lg 
+      ${compact ? 'p-2' : 'p-3 sm:p-4'} 
+      bg-white dark:bg-gray-800
+      w-full h-full
+    `}>
+      <div className="flex items-center mb-1 sm:mb-2">
         <div
-          className={`w-8 h-8 rounded-lg ${selectedStyle.iconBg} flex items-center justify-center mr-2`}
+          className={`
+            ${compact ? 'w-6 h-6' : 'w-8 h-8'} 
+            rounded-lg ${selectedStyle.iconBg} 
+            flex items-center justify-center 
+            ${compact ? 'mr-1' : 'mr-2'}
+          `}
         >
-          <IconComponent className={`w-5 h-5 ${selectedStyle.iconColor}`} />
+          <IconComponent 
+            className={`
+              ${compact ? 'w-3 h-3' : 'w-4 h-4 sm:w-5 sm:h-5'} 
+              ${selectedStyle.iconColor}
+            `} 
+          />
         </div>
-        <div className="text-sm font-extrabold text-gray-900 dark:text-white">
+        <div className={`
+          ${compact ? 'text-xs' : 'text-sm sm:text-sm'} 
+          font-extrabold text-gray-900 dark:text-white
+          truncate
+        `}>
           {title}
         </div>
       </div>
-      <div className="text-xl mt-6 font-light text-gray-900 dark:text-white">
+      <div className={`
+        ${compact ? 'text-base mt-2' : 'text-xl mt-4 sm:mt-6'} 
+        font-light text-gray-900 dark:text-white
+        truncate
+      `}>
         {isLoading ? (
-          <span className="text-gray-400 dark:text-gray-500">Loading...</span>
+          <span className="text-gray-400 dark:text-gray-500">...</span>
         ) : (
           value
         )}
