@@ -35,6 +35,7 @@ export default function Dashboard() {
   const [purchaseError, setPurchaseError] = useState("")
   const [currentInfoIndex, setCurrentInfoIndex] = useState(0)
 
+
   // Info items for carousel
   const infoItems = [
     "Next Interest Payment: June 2026",
@@ -59,6 +60,7 @@ export default function Dashboard() {
     chainId: scrollSepolia.id,
   });
 
+  console.log(activeFarmIds)
   // Batch fetch farm configurations
   const farmConfigContracts = activeFarmIds
     ? activeFarmIds.map((farmId) => ({

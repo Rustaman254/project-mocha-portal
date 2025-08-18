@@ -1,20 +1,21 @@
-import type { AppProps } from "next/app";
+import type { AppContext, AppProps } from "next/app";
+import App from "next/app";
 import "@/styles/globals.css";
-import { WagmiProvider } from 'wagmi';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { config } from '../lib/config';
-import { Providers } from "@/components/providers/openfortProviders";
+import ContextProvider from "@/context";
 
-const queryClient = new QueryClient();
-
-export default function App({ Component, pageProps }: AppProps) {
+function MyApp({ Component, pageProps, cookie }: AppProps & { cookie: string | null }) {
   return (
-    <WagmiProvider config={config}>
-      <QueryClientProvider client={queryClient}>
-        <Providers>
-          <Component {...pageProps} />
-        </Providers>
-      </QueryClientProvider>
-    </WagmiProvider>
+    <ContextProvider cookies={cookie}>
+      <Component {...pageProps} />
+    </ContextProvider>
   );
 }
+
+MyApp.getInitialProps = async (appContext: AppContext) => {
+  const appProps = await App.getInitialProps(appContext);
+  const { req } = appContext.ctx;
+  const cookie = req ? req.headers.cookie || null : null;
+  return { ...appProps, cookie };
+};
+
+export default MyApp;
