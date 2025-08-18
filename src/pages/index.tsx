@@ -312,7 +312,7 @@ export default function Dashboard() {
                     isLoading={card.isLoading}
                     iconColor={card.iconColor}
                     icon={card.icon}
-                    compact={window.innerWidth < 768} // Compact on mobile
+                    // compact={window.innerWidth < 768} // Compact on mobile
                   />
                 ))}
               </div>
