@@ -707,7 +707,7 @@ export default function Marketplace() {
 
           {/* Farm Details Modal */}
           <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpenWrapper}>
-            <DialogContent className="bg-gray-50 dark:bg-gray-800 border-none max-w-[700px] p-6">
+            <DialogContent className="bg-gray-50 text-gray-700 dark:bg-gray-800 border-none max-w-[700px] p-6">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold dark:text-white">
                   {selectedFarmData?.data?.name || "Farm"} Details
@@ -720,76 +720,76 @@ export default function Marketplace() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg text-center w-full h-[400px] flex items-center justify-center">
+                  {/* <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg text-center w-full h-[400px] flex items-center justify-center">
                     <div>
                       <h2 className="text-lg font-semibold dark:text-white mb-2">Farm Location</h2>
                       <p className="text-gray-500 dark:text-gray-400">Map Coming Soon</p>
                     </div>
-                  </div>
+                  </div> */}
                   <div className="p-4 rounded-lg">
                     <h2 className="text-lg font-semibold dark:text-white mb-3">Farm Information</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Farm Name</p>
-                        <p className="text-base dark:text-white">{selectedFarmData.data.name}</p>
+                        <p className="text-base dark:text-white font-bold">{selectedFarmData.data.name}</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Owner</p>
-                        <p className="text-base dark:text-white">{truncateAddress(selectedFarmData.data.farmOwner)}</p>
+                        <p className="text-base dark:text-white font-bold">{truncateAddress(selectedFarmData.data.farmOwner)}</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Bond Count</p>
-                        <p className="text-base dark:text-white">{selectedFarmData.data.treeCount.toString()}</p>
+                        <p className="text-base dark:text-white font-bold">{selectedFarmData.data.treeCount.toString()}</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Annual Interest</p>
-                        <p className="text-base dark:text-white">{(Number(selectedFarmData.data.targetAPY) / 100).toFixed(2)}%</p>
+                        <p className="text-base dark:text-white font-bold">{(Number(selectedFarmData.data.targetAPY) / 100).toFixed(2)}%</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</p>
                         <p className="text-base dark:text-white">
                           {selectedFarmData.data.active ? (
-                            <span className="text-green-600 dark:text-green-400">Active</span>
+                            <span className="text-green-600 dark:text-green-400 font-bold">Active</span>
                           ) : (
-                            <span className="text-gray-500 dark:text-gray-400">Inactive</span>
+                            <span className="text-gray-500 dark:text-gray-400 font-bold">Inactive</span>
                           )}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Share Token Symbol</p>
-                        <p className="text-base dark:text-white">{selectedFarmData.data.shareTokenSymbol}</p>
+                        <p className="text-base dark:text-white font-bold">{selectedFarmData.data.shareTokenSymbol}</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Bond Value</p>
-                        <p className="text-base dark:text-white">${Number(selectedFarmData.data.bondValue).toLocaleString()}</p>
+                        <p className="text-base dark:text-white font-bold">${formatUnits(selectedFarmData.data.bondValue).toLocaleString(undefined, { minimumFractionDigits: 18 })}</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Collateral Ratio</p>
-                        <p className="text-base dark:text-white">{(Number(selectedFarmData.data.collateralRatio) / 100).toFixed(2)}%</p>
+                        <p className="text-base dark:text-white font-bold">{(Number(selectedFarmData.data.collateralRatio) / 100).toFixed(2)}%</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Created Date</p>
-                        <p className="text-base dark:text-white">
+                        <p className="text-base dark:text-white font-bold">
                           {new Date(Number(selectedFarmData.data.createdTimestamp) * 1000).toLocaleString()}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Maturity Period</p>
-                        <p className="text-base dark:text-white">{selectedFarmData.data.maturityPeriod.toString()} months</p>
+                        <p className="text-base dark:text-white font-bold">{selectedFarmData.data.maturityPeriod.toString()} months</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Maturity Date</p>
-                        <p className="text-base dark:text-white">
+                        <p className="text-base dark:text-white font-bold">
                           {new Date(Number(selectedFarmData.data.maturityTimestamp) * 1000).toLocaleString()}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Min Investment</p>
-                        <p className="text-base dark:text-white">{Number(formatUnits(selectedFarmData.data.minInvestment, MBT_DECIMALS)).toFixed(2)} MBT</p>
+                        <p className="text-base dark:text-white font-bold">{Number(formatUnits(selectedFarmData.data.minInvestment, MBT_DECIMALS)).toFixed(2)} MBT</p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Max Investment</p>
-                        <p className="text-base dark:text-white">{Number(formatUnits(selectedFarmData.data.maxInvestment, MBT_DECIMALS)).toFixed(2)} MBT</p>
+                        <p className="text-base dark:text-white font-bold">{Number(formatUnits(selectedFarmData.data.maxInvestment, MBT_DECIMALS)).toFixed(2)} MBT</p>
                       </div>
                     </div>
                     <div className="mt-4">

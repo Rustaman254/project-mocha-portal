@@ -175,7 +175,7 @@ export default function Header() {
               variant="outline"
               size="icon"
               onClick={toggleDarkMode}
-              className="rounded-full bg-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 h-8 w-8 lg:h-10 lg:w-10"
+              className="rounded-full bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 h-8 w-8 lg:h-10 lg:w-10"
             >
               {darkMode ? <Sun className="h-4 w-4 lg:h-5 lg:w-5" /> : <Moon className="h-4 w-4 lg:h-5 lg:w-5 text-gray-700" />}
             </Button>
@@ -205,7 +205,7 @@ export default function Header() {
             variant="outline"
             size="icon"
             onClick={toggleMobileMenu}
-            className="rounded-full bg-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 h-8 w-8"
+            className="rounded-full bg-white dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 h-8 w-8"
           >
             {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>

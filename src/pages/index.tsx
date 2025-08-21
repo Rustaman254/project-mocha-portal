@@ -440,7 +440,7 @@ export default function Dashboard() {
                   <h2 className="text-xl font-bold dark:text-white">Your Bonds</h2>
                   <p className="text-gray-500 dark:text-gray-400">Manage your bond holdings</p>
                 </div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 overflow-x-auto">
+                <div className="bg-white dark:bg-gray-800 rounded-lg dark:border-gray-700 overflow-x-auto">
                   <table className="min-w-full">
                     <thead>
                       <tr className="border-b dark:border-gray-800">
