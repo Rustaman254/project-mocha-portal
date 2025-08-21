@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { useAccount, useReadContract, useReadContracts, useWriteContract, usePublicClient } from "wagmi"
 import { parseUnits, formatUnits } from "viem"
 import { scrollSepolia } from "viem/chains"
@@ -599,111 +601,139 @@ export default function Marketplace() {
             </TabsList>
           </Tabs>
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b dark:border-gray-800">
-                  <th className="px-4 font-bold py-3 text-left text-xs font-medium text-black-500 dark:text-gray-400 uppercase tracking-wider">
-                    #
-                  </th>
-                  <th className="px-4 font-bold py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Farm
-                  </th>
-                  <th className="px-4 font-bold py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Share Token Address
-                  </th>
-                  <th className="px-4 font-bold py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Owner
-                  </th>
-                  <th className="px-4 font-bold py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Bond Count
-                  </th>
-                  <th className="px-4 font-bold py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Annual Interest
-                  </th>
-                  <th className="px-4 font-bold py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-4 font-bold py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoadingActiveFarmIds || isLoadingFarmConfigs ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
-                      Loading farms...
-                    </td>
-                  </tr>
-                ) : activeFarmIdsError || farmConfigsError ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-4 text-center text-red-600 dark:text-red-400">
-                      Error loading farms
-                      {logAction("Farm Loading Error", { userAddress, error: (activeFarmIdsError || farmConfigsError)?.message })}
-                    </td>
-                  </tr>
-                ) : filteredFarms.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
-                      No farms found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredFarms.map(({ farmId, data, error }, index) => (
-                    <tr
-                      key={farmId.toString()}
-                      className="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
-                      onClick={() => handleRowClick({ farmId, data, error })}
-                    >
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        {error ? (
-                          <div className="text-red-600 dark:text-red-400">Error</div>
-                        ) : data ? (
-                          <div className="flex items-center">
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">{data.name}</div>
-                          </div>
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {error ? "N/A" : data ? truncateAddress(data.shareTokenAddress) : "N/A"}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {error ? "N/A" : data ? truncateAddress(data.farmOwner) : "N/A"}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400">
-                        {error ? "N/A" : data ? data.treeCount.toString() : "N/A"}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400">
-                        {error ? "N/A" : data ? `${(Number(data.targetAPY) / 100).toFixed(2)}%` : "N/A"}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm">
-                        {error ? (
-                          <span className="text-red-600 dark:text-red-400">Error</span>
-                        ) : data ? (
-                          data.active ? (
-                            <span className="text-green-600 dark:text-green-400">Active</span>
-                          ) : (
-                            <span className="text-gray-500 dark:text-gray-400">Inactive</span>
-                          )
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          className="bg-[#7A5540] hover:bg-[#6A4A36] text-white border-none"
-                          disabled={error || !data?.active}
-                          onClick={() => data && handleBuyBondsClick(farmId.toString(), data.name, data.minInvestment)}
-                        >
-                          {isConnected ? "Buy Bonds" : "Connect Wallet"}
-                        </Button>
-                      </td>
+          <Card className="bg-white dark:bg-gray-800 border-0 shadow-md">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-xl font-bold dark:text-white">Available Farms</CardTitle>
+              <CardDescription className="text-gray-500 dark:text-gray-400">
+                Browse and invest in asset-backed bonds
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead className="bg-[#F6F6F6] dark:bg-gray-800">
+                    <tr className="border-b dark:border-gray-800">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
+                        #
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
+                        Farm
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
+                        Share Token Address
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
+                        Owner
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
+                        Bond Count
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
+                        Annual Interest
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
+                        Collateral Ratio
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
+                        Maturity Period
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
+                        Bond Value
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
+                        Action
+                      </th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {isLoadingActiveFarmIds || isLoadingFarmConfigs ? (
+                      <tr>
+                        <td colSpan={11} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
+                          Loading farms...
+                        </td>
+                      </tr>
+                    ) : activeFarmIdsError || farmConfigsError ? (
+                      <tr>
+                        <td colSpan={11} className="px-4 py-4 text-center text-red-600 dark:text-red-400">
+                          Error loading farms
+                          {logAction("Farm Loading Error", { userAddress, error: (activeFarmIdsError || farmConfigsError)?.message })}
+                        </td>
+                      </tr>
+                    ) : filteredFarms.length === 0 ? (
+                      <tr>
+                        <td colSpan={11} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
+                          No farms found
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredFarms.map(({ farmId, data, error }, index) => (
+                        <tr
+                          key={farmId.toString()}
+                          className="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
+                          onClick={() => handleRowClick({ farmId, data, error })}
+                        >
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
+                          <td className="px-4 py-4 whitespace-nowrap">
+                            {error ? (
+                              <div className="text-red-600 dark:text-red-400">Error</div>
+                            ) : data ? (
+                              <div className="flex items-center">
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">{data.name}</div>
+                              </div>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {error ? "N/A" : data ? truncateAddress(data.shareTokenAddress) : "N/A"}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {error ? "N/A" : data ? truncateAddress(data.farmOwner) : "N/A"}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400">
+                            {error ? "N/A" : data ? data.treeCount.toString() : "N/A"}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400">
+                            {error ? "N/A" : data ? `${(Number(data.targetAPY) / 100).toFixed(2)}%` : "N/A"}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400">
+                            {error ? "N/A" : data ? `${(Number(data.collateralRatio) / 100).toFixed(2)}%` : "N/A"}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400">
+                            {error ? "N/A" : data ? `${data.maturityPeriod.toString()} months` : "N/A"}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400">
+                            {error ? "N/A" : data ? `$${formatUnits(data.bondValue, MBT_DECIMALS)}` : "N/A"}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm">
+                            {error ? (
+                              <Badge className="bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">Error</Badge>
+                            ) : data ? (
+                              data.active ? (
+                                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">Active</Badge>
+                              ) : (
+                                <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300">Inactive</Badge>
+                              )
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              className="bg-[#7A5540] hover:bg-[#6A4A36] text-white border-none"
+                              disabled={error || !data?.active}
+                              onClick={() => data && handleBuyBondsClick(farmId.toString(), data.name, data.minInvestment)}
+                            >
+                              {isConnected ? "Buy Bonds" : "Connect Wallet"}
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Farm Details Modal */}
           <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpenWrapper}>
@@ -792,6 +822,16 @@ export default function Marketplace() {
                         <p className="text-base dark:text-white font-bold">{Number(formatUnits(selectedFarmData.data.maxInvestment, MBT_DECIMALS)).toFixed(2)} MBT</p>
                       </div>
                     </div>
+                    <div className="mt-6 bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
+                      <h3 className="text-md font-semibold dark:text-white mb-2">Security & Confidence</h3>
+                      <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-300 space-y-1">
+                        <li>Each bond is overcollateralized by geo-tagged coffee trees</li>
+                        <li>Real-time tracking via investor dashboard (coming soon)</li>
+                        <li>Revenue pooling for risk diversification</li>
+                        <li>Compliant with tokenized asset guidelines</li>
+                        <li>KYC/AML enforced for all investors</li>
+                      </ul>
+                    </div>
                     <div className="mt-4">
                       <Button
                         className="bg-[#7A5540] hover:bg-[#6A4A36] text-white border-none"
@@ -850,6 +890,11 @@ export default function Marketplace() {
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       Transaction Hash: {truncateAddress(purchaseSuccessDetails.txHash)}
                     </p>
+                    <div className="mt-4 bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+                      <p className="text-green-700 dark:text-green-300 text-sm">
+                        Your investment is secured by geo-tagged coffee trees with revenue pooling for added protection.
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <>

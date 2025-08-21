@@ -447,6 +447,7 @@ export default function Dashboard() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Farm</th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Bonds Owned</th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Annual Interest</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Action</th>
                       </tr>
                     </thead>
@@ -473,22 +474,29 @@ export default function Dashboard() {
                               key={farmId.toString()}
                               className="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                             >
-                              <td className="px-4 py-4">
+                              <td className="px-4 py-2">
                                 <div className="flex flex-col">
                                   <span className="font-medium dark:text-white">{config?.name || "N/A"}</span>
                                   <span className="text-xs text-gray-500 dark:text-gray-400">Farm Owner: {truncateAddress(config?.farmOwner)}</span>
                                 </div>
                               </td>
-                              <td className="px-4 py-4 text-right text-sm dark:text-white">
+                              <td className="px-4 py-2 text-right text-sm dark:text-white">
                                 {formatEther(balance)}
                               </td>
-                              <td className="px-4 py-4 text-right text-sm dark:text-white">
-                                ${Number(formatEther(balance)) * 10}
+                              <td className="px-4 py-2 text-right text-sm dark:text-white">
+                                ${(Number(formatEther(balance)) * 10).toLocaleString()}
                               </td>
-                              <td className="px-4 py-4 text-right">
+
+                              <td className="px-4 py-2 text-right text-sm dark:text-white">
+                                {config?.active ? 
+                                  <span className="bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded-full dark:bg-green-900 dark:text-green-300">Active</span>
+ : <span className="bg-red-100 text-red-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded-full dark:bg-red-900 dark:text-red-300">Inactive</span>}
+                              </td>
+
+                              <td className="px-4 py-2 text-right">
                                 <Button 
                                   size="sm" 
-                                  className="bg-[#7A5540] hover:bg-[#6A4A36] text-white"
+                                  className="text-[#7A5540] bg-transparent cursor-pointer font-bold hover:bg-[#6A4A36]"
                                   onClick={() => config && handleBuyMoreClick(farmId.toString(), config.name, config.minInvestment)}
                                 >
                                   Buy More
