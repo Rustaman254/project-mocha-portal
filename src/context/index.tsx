@@ -17,7 +17,7 @@ if (!projectId) {
 // Set up metadata
 const metadata = {
   name: 'Promect Mocha',
-  description: 'AppKit Example',
+  description: '',
   url: 'https://appkitexampleapp.com', // origin must match your domain & subdomain
   icons: ['https://avatars.githubusercontent.com/u/179229932']
 }

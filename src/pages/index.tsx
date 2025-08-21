@@ -1,55 +1,92 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Filter, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Info, MoreHorizontal, RefreshCw, Coffee } from "lucide-react"
+import { Search, Filter, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Info, MoreHorizontal, RefreshCw, Coffee, AlertTriangle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { useAccount, useReadContract, useReadContracts, useWriteContract, useBalance } from "wagmi"
-import { parseEther, formatEther } from "viem"
+import { useAccount, useReadContract, useReadContracts, useWriteContract, useBalance, usePublicClient } from "wagmi"
+import { parseEther, formatEther, parseUnits, formatUnits } from "viem"
 import { scrollSepolia } from "viem/chains"
 import Header from "@/components/@shared-components/header"
-import { useRouter } from 'next/router'
-import vault from "@/ABI/MochaTreeRightsABI.json"
 import StatCard from "@/components/@shared-components/statCard"
+import { TREE_CONTRACT_ABI, TREE_CONTRACT_ADDRESS, MBT_ADDRESS } from "@/config/constants"
+import Link from "next/link"
+import { Toaster, toast } from "sonner"
 
-const MOCHA_TREE_CONTRACT_ADDRESS = "0x4b02Bada976702E83Cf91Cd0B896852099099352";
-const MOCHA_TREE_CONTRACT_ABI = vault.abi;
-const BOND_PRICE_USD = 100; // $100 per bond
-const MAX_BONDS_PER_INVESTOR = 20;
+const MOCHA_TREE_CONTRACT_ADDRESS =  TREE_CONTRACT_ADDRESS;
+const MOCHA_TREE_CONTRACT_ABI = TREE_CONTRACT_ABI;
+const MBT_TOKEN_ADDRESS = MBT_ADDRESS;
+const BOND_PRICE_USD = 100;
+const MBT_PRICE_USD = 25;
+const BOND_MBT = BOND_PRICE_USD / MBT_PRICE_USD; // 4 MBT per full bond
+const MBT_DECIMALS = 18;
+
+// MBT Token ABI
+const MBT_TOKEN_ABI = [
+  {
+    constant: true,
+    inputs: [{ name: "_owner", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ name: "balance", type: "uint256" }],
+    type: "function",
+  },
+  {
+    constant: false,
+    inputs: [
+      { name: "_spender", type: "address" },
+      { name: "_value", type: "uint256" },
+    ],
+    name: "approve",
+    outputs: [{ name: "success", type: "bool" }],
+    type: "function",
+  },
+  {
+    constant: false,
+    inputs: [
+      { name: "_to", type: "address" },
+      { name: "_value", type: "uint256" },
+    ],
+    name: "transfer",
+    outputs: [{ name: "success", type: "bool" }],
+    type: "function",
+  },
+  {
+    constant: true,
+    inputs: [],
+    name: "decimals",
+    outputs: [{ name: "", type: "uint8" }],
+    type: "function",
+  },
+  {
+    constant: true,
+    inputs: [
+      { name: "_owner", type: "address" },
+      { name: "_spender", type: "address" }
+    ],
+    name: "allowance",
+    outputs: [{ name: "remaining", type: "uint256" }],
+    type: "function",
+  },
+] as const;
 
 export default function Dashboard() {
-  const router = useRouter()
-  const { address: userAddress } = useAccount()
-  const [overviewTab, setOverviewTab] = useState("Overview")
-  const [marketTab, setMarketTab] = useState("All")
+  const { address: userAddress, isConnected } = useAccount()
+  const publicClient = usePublicClient({ chainId: scrollSepolia.id });
   const [sortBy, setSortBy] = useState("name")
   const [sortOrder, setSortOrder] = useState("asc")
   const [searchQuery, setSearchQuery] = useState("")
   const [darkMode, setDarkMode] = useState(false)
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false)
   const [selectedFarmId, setSelectedFarmId] = useState("")
-  const [bondAmount, setBondAmount] = useState("1")
+  const [selectedFarmName, setSelectedFarmName] = useState("")
+  const [mbtAmount, setMbtAmount] = useState("")
   const [purchaseError, setPurchaseError] = useState("")
-  const [currentInfoIndex, setCurrentInfoIndex] = useState(0)
-
-  // Info items for carousel
-  const infoItems = [
-    "Next Interest Payment: June 2026",
-    "Interest Rate: 10%",
-    "Maturity: June 2030"
-  ]
-
-  // Navigation handlers for info items
-  const handlePrevInfo = () => {
-    setCurrentInfoIndex((prev) => (prev === 0 ? infoItems.length - 1 : prev - 1))
-  }
-
-  const handleNextInfo = () => {
-    setCurrentInfoIndex((prev) => (prev === infoItems.length - 1 ? 0 : prev + 1))
-  }
+  const [isApproving, setIsApproving] = useState(false)
+  const [approvalTxHash, setApprovalTxHash] = useState("")
+  const [purchaseSuccessDetails, setPurchaseSuccessDetails] = useState<{ bonds: number; farmName: string; txHash: string } | null>(null)
 
   // Fetch contract data
   const { data: activeFarmIds, isLoading: isLoadingActiveFarmIds, error: activeFarmIdsError } = useReadContract({
@@ -89,10 +126,23 @@ export default function Dashboard() {
     contracts: balanceContracts,
   });
 
-  // Fetch user's ETH balance
-  const { data: ethBalance } = useBalance({
-    address: userAddress,
+  // MBT Token balance and allowance
+  const { data: mbtBalance, refetch: refetchMbtBalance } = useReadContract({
+    address: MBT_TOKEN_ADDRESS,
+    abi: MBT_TOKEN_ABI,
+    functionName: 'balanceOf',
+    args: [userAddress],
     chainId: scrollSepolia.id,
+    query: { enabled: isConnected },
+  });
+
+  const { data: mbtAllowance, refetch: refetchAllowance } = useReadContract({
+    address: MBT_TOKEN_ADDRESS,
+    abi: MBT_TOKEN_ABI,
+    functionName: 'allowance',
+    args: [userAddress, MOCHA_TREE_CONTRACT_ADDRESS],
+    chainId: scrollSepolia.id,
+    query: { enabled: isConnected },
   });
 
   // Process farm and balance data
@@ -104,42 +154,6 @@ export default function Dashboard() {
         error: result.status === 'failure' ? result.error : null,
       }))
     : [];
-
-  // Filter and sort farms for the table
-  const filteredFarms = farms
-    .filter(({ config }) => {
-      if (!config) return false
-      if (marketTab === "Active") return config.active
-      return true
-    })
-    .filter(({ config }) => {
-      if (!searchQuery || !config) return true
-      return (
-        config.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        config.shareTokenSymbol.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    })
-    .sort((a, b) => {
-      if (!a.config || !b.config) return 0
-      let comparison = 0
-      switch (sortBy) {
-        case "id":
-          comparison = Number(a.farmId) - Number(b.farmId)
-          break
-        case "name":
-          comparison = a.config.name.localeCompare(b.config.name)
-          break
-        case "bonds":
-          comparison = Number(a.config.treeCount) - Number(b.config.treeCount)
-          break
-        case "interest":
-          comparison = Number(a.config.targetAPY) - Number(b.config.targetAPY)
-          break
-        default:
-          comparison = a.config.name.localeCompare(b.config.name)
-      }
-      return sortOrder === "asc" ? comparison : -comparison
-    })
 
   // Calculate total bonds owned and interest
   const totalBondsOwned = farms.reduce((sum, { balance }) => sum + Number(balance), 0);
@@ -171,52 +185,142 @@ export default function Dashboard() {
     },
   ];
 
-  // Purchase bond functionality
-  const { writeContract, isPending, isSuccess, error: writeError } = useWriteContract();
+  // Write contract hooks
+  const { writeContractAsync: writeApprove, isPending: isApprovePending, isSuccess: isApproveSuccess } = useWriteContract();
+  const { writeContractAsync: writePurchase, isPending: isPurchasePending, isSuccess: isPurchaseSuccess } = useWriteContract();
 
+  // Handle MBT token approval
+  const approveTokens = async (amount: bigint) => {
+    if (!isConnected) {
+      setPurchaseError("Please connect your wallet");
+      return false;
+    }
+
+    try {
+      setIsApproving(true);
+      setPurchaseError("");
+
+      const txHash = await writeApprove({
+        address: MBT_TOKEN_ADDRESS,
+        abi: MBT_TOKEN_ABI,
+        functionName: 'approve',
+        args: [MOCHA_TREE_CONTRACT_ADDRESS, amount],
+      });
+
+      setApprovalTxHash(txHash);
+      return true;
+    } catch (err: any) {
+      setPurchaseError(`Approval failed: ${err.message || err.toString()}`);
+      return false;
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  // Handle bond purchase
   const handlePurchase = async () => {
+    if (!isConnected) {
+      setPurchaseError("Please connect your wallet");
+      return;
+    }
+
+    if (!publicClient) {
+      setPurchaseError("Public client not available");
+      return;
+    }
+
     setPurchaseError("");
-    const amount = parseInt(bondAmount);
-    
-    // Validate inputs
+    const amount = mbtAmountNum;
+
+    // Validation
     if (!selectedFarmId) {
-      setPurchaseError("Please select a farm");
+      setPurchaseError("No farm selected");
       return;
     }
-    if (isNaN(amount) || amount < 1) {
-      setPurchaseError("Please enter at least 1 bond");
+
+    const minInvestmentNum = Number(formatUnits(minInvestment, MBT_DECIMALS));
+    const maxInvestmentNum = Number(formatUnits(maxInvestment, MBT_DECIMALS));
+
+    if (amount < minInvestmentNum) {
+      setPurchaseError(`MBT amount must be at least ${minInvestmentNum.toFixed(2)} MBT`);
       return;
     }
-    if (amount + totalBondsOwned > MAX_BONDS_PER_INVESTOR) {
-      setPurchaseError(`Cannot exceed ${MAX_BONDS_PER_INVESTOR} bonds per investor`);
+    if (amount > maxInvestmentNum) {
+      setPurchaseError(`MBT amount must not exceed ${maxInvestmentNum.toFixed(2)} MBT`);
       return;
     }
-    const totalCostEth = parseEther((amount * BOND_PRICE_USD / 1000).toString()); // Assuming 1 ETH = $1000 for simplicity
-    if (ethBalance && BigInt(ethBalance.value) < totalCostEth) {
-      setPurchaseError("Insufficient ETH balance");
+
+    const totalCost = parseUnits(amount.toString(), MBT_DECIMALS);
+    
+    if (!mbtBalance || BigInt(mbtBalance as bigint) < totalCost) {
+      setPurchaseError(`Insufficient MBT balance. You need ${formatUnits(totalCost, MBT_DECIMALS)} MBT`);
       return;
     }
 
     try {
-      await writeContract({
+      // Purchase bonds
+      const txHash = await writePurchase({
         address: MOCHA_TREE_CONTRACT_ADDRESS,
         abi: MOCHA_TREE_CONTRACT_ABI,
         functionName: 'purchaseBond',
-        args: [BigInt(selectedFarmId), BigInt(amount)],
-        value: totalCostEth,
+        args: [BigInt(selectedFarmId), totalCost],
       });
-    } catch (err) {
-      setPurchaseError("Transaction failed");
+
+      const bonds = mbtAmountNum / BOND_MBT;
+      setPurchaseSuccessDetails({ bonds, farmName: selectedFarmName, txHash });
+      setPurchaseError("");
+      toast.success(`Successfully purchased ${bonds.toFixed(2)} bonds for ${selectedFarmName}! Transaction: ${txHash}`);
+    } catch (err: any) {
+      setPurchaseError(`Transaction failed: ${err.message || err.toString()}`);
     }
   };
 
-  useEffect(() => {
-    if (isSuccess) {
-      setIsPurchaseModalOpen(false);
-      setBondAmount("1");
-      setSelectedFarmId("");
+  // Handle approve click
+  const handleApprove = async () => {
+    const totalCost = parseUnits(mbtAmountNum.toString(), MBT_DECIMALS);
+    await approveTokens(totalCost);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await refetchAllowance();
+  };
+
+  // Handle wallet connection
+  const handleConnectWallet = () => {
+    if (typeof (window as any).openfort !== 'undefined') {
+      (window as any).openfort.connect();
+    } else {
+      console.error("Openfort SDK not loaded");
+      setPurchaseError("Wallet connection failed. Please try again.");
     }
-  }, [isSuccess]);
+  };
+
+  // Handle buy more click
+  const handleBuyMoreClick = (farmId: string, farmName: string, minInvestment: bigint) => {
+    if (!isConnected) {
+      handleConnectWallet();
+    } else {
+      setSelectedFarmId(farmId);
+      setSelectedFarmName(farmName);
+      setMbtAmount(Number(formatUnits(minInvestment, MBT_DECIMALS)).toFixed(2));
+      setIsPurchaseModalOpen(true);
+    }
+  };
+
+  // Effects
+  useEffect(() => {
+    if (isPurchaseSuccess) {
+      setMbtAmount("");
+      setSelectedFarmId("");
+      setSelectedFarmName("");
+      refetchMbtBalance();
+      refetchAllowance();
+    }
+  }, [isPurchaseSuccess, refetchMbtBalance, refetchAllowance]);
+
+  useEffect(() => {
+    if (isApproveSuccess) {
+      refetchAllowance();
+    }
+  }, [isApproveSuccess, refetchAllowance]);
 
   useEffect(() => {
     const savedMode = localStorage.getItem("darkMode")
@@ -246,56 +350,69 @@ export default function Dashboard() {
     setSortOrder(sortOrder === "asc" ? "desc" : "asc")
   }
 
+  const formatMbtBalance = (): string => {
+    if (!mbtBalance) return "0.00";
+    return Number(formatUnits(mbtBalance as bigint, MBT_DECIMALS)).toFixed(2);
+  };
+
+  // Purchase calculations
+  const selectedFarm = farms.find(farm => farm.farmId.toString() === selectedFarmId);
+  const minInvestment = selectedFarm?.config?.minInvestment || BigInt(0);
+  const maxInvestment = selectedFarm?.config?.maxInvestment || BigInt(0);
+  const minInvestmentNum = Number(formatUnits(minInvestment, MBT_DECIMALS));
+  const maxInvestmentNum = Number(formatUnits(maxInvestment, MBT_DECIMALS));
+  const mbtAmountNum = parseFloat(mbtAmount || "0");
+  const maxMbtAllowed = maxInvestmentNum;
+  const isValidAmount = mbtAmountNum >= minInvestmentNum && mbtAmountNum <= maxMbtAllowed;
+  const totalCost = parseUnits(mbtAmountNum.toString(), MBT_DECIMALS);
+  const bondCount = mbtAmountNum / BOND_MBT;
+  const hasSufficientBalance = mbtBalance ? BigInt(mbtBalance as bigint) >= totalCost : false;
+  const needsApproval = mbtAllowance ? BigInt(mbtAllowance as bigint) < totalCost : true;
+  const canProceed = isValidAmount && hasSufficientBalance;
+
+  // Handle MBT amount change
+  const handleMbtAmountChange = (value: string) => {
+    if (value === '' || (/^\d*\.?\d*$/.test(value) && parseFloat(value) >= 0 && parseFloat(value) <= maxMbtAllowed)) {
+      setMbtAmount(value);
+      setPurchaseError("");
+    } else if (parseFloat(value) < minInvestmentNum) {
+      setPurchaseError(`MBT amount must be at least ${minInvestmentNum.toFixed(2)} MBT`);
+    } else if (parseFloat(value) > maxInvestmentNum) {
+      setPurchaseError(`MBT amount must not exceed ${maxInvestmentNum.toFixed(2)} MBT`);
+    }
+  };
+
+  // Handle decrement
+  const decrementAmount = () => {
+    const newAmount = Math.max(minInvestmentNum, mbtAmountNum - 1).toFixed(2);
+    setMbtAmount(newAmount);
+    setPurchaseError("");
+  };
+
+  // Handle increment
+  const incrementAmount = () => {
+    const newAmount = Math.min(maxMbtAllowed, mbtAmountNum + 1).toFixed(2);
+    setMbtAmount(newAmount);
+    setPurchaseError("");
+  };
+
+  // Handle max
+  const setMaxAmount = () => {
+    const newAmount = maxMbtAllowed.toFixed(2);
+    setMbtAmount(newAmount);
+    setPurchaseError("");
+  };
+
   return (
     <div className="min-h-screen bg-[#E6E6E6] dark:bg-gray-900 transition-colors duration-200 text-gray-900 dark:text-white">
+      <Toaster richColors position="bottom-right-right" />
       <Header />
       <div className="pt-[72px]">
-        <div className="px-4 sm:px-6 lg:px-8 py-6">
+        <div className="mx-auto py-6 px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 max-w-[1800px]">
           {/* Header Section */}
           <div className="mb-6">
             <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">MOCHA ASSET-BACKED BONDS</div>
             <h1 className="text-2xl sm:text-3xl font-bold dark:text-white">Dashboard</h1>
-          </div>
-
-          {/* Tab Navigation */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b-2 dark:border-gray-800 mb-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto mb-4 sm:mb-0">
-              {["Overview", "Bonds", "History"].map((tab) => (
-                <button
-                  key={tab}
-                  className={`px-4 py-3 font-medium relative w-full sm:w-auto text-left sm:text-center ${
-                    overviewTab === tab
-                      ? "text-[#522912] font-bold border-b-4 border-[#522912] dark:text-[#522912] dark:border-[#522912]"
-                      : "text-gray-500 dark:text-gray-400"
-                  }`}
-                  onClick={() => setOverviewTab(tab)}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-            
-            {/* Info Carousel */}
-            <div className="flex items-center w-full sm:w-auto justify-between sm:justify-end bg-gray-100 dark:bg-gray-800 rounded-lg p-2">
-              <button onClick={handlePrevInfo} className="p-1">
-                <ChevronLeft className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-              </button>
-              <div className="flex-1 mx-2 text-center overflow-hidden">
-                <div
-                  className="whitespace-nowrap transition-transform duration-300 ease-in-out"
-                  style={{ transform: `translateX(-${currentInfoIndex * 100}%)` }}
-                >
-                  {infoItems.map((item, index) => (
-                    <span key={index} className="inline-block w-full px-2 text-xs sm:text-sm dark:text-gray-300">
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <button onClick={handleNextInfo} className="p-1">
-                <ChevronRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
-              </button>
-            </div>
           </div>
 
           {/* Main Content Grid */}
@@ -317,194 +434,41 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              {/* Overview Tab Content */}
-              {overviewTab === "Overview" && (
-                <div className="border dark:border-gray-800 rounded-lg p-4 sm:p-6 bg-white dark:bg-gray-800 overflow-x-auto">
-                  <h3 className="text-lg font-medium mb-4 dark:text-white">Return Profile</h3>
-                  <div className="min-w-[600px]">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b dark:border-gray-700">
-                          <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Year</th>
-                          <th className="px-2 sm:px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Interest</th>
-                          <th className="px-2 sm:px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Cumulative</th>
-                          <th className="px-2 sm:px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Principal</th>
-                          <th className="px-2 sm:px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {[...Array(5)].map((_, i) => {
-                          const year = i + 1;
-                          const interest = 10;
-                          const cumulative = interest * year;
-                          const principal = year === 5 ? 100 : 0;
-                          const totalPayout = interest + principal;
-                          return (
-                            <tr key={year} className="border-b dark:border-gray-700">
-                              <td className="px-2 sm:px-4 py-3 text-sm dark:text-white">{year}</td>
-                              <td className="px-2 sm:px-4 py-3 text-sm text-right dark:text-white">${interest.toFixed(2)}</td>
-                              <td className="px-2 sm:px-4 py-3 text-sm text-right dark:text-white">${cumulative.toFixed(2)}</td>
-                              <td className="px-2 sm:px-4 py-3 text-sm text-right dark:text-white">${principal.toFixed(2)}</td>
-                              <td className="px-2 sm:px-4 py-3 text-sm text-right dark:text-white">${totalPayout.toFixed(2)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+              {/* Bonds Content */}
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-bold dark:text-white">Your Bonds</h2>
+                  <p className="text-gray-500 dark:text-gray-400">Manage your bond holdings</p>
                 </div>
-              )}
-
-              {/* Bonds Tab Content */}
-              {overviewTab === "Bonds" && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-xl font-bold dark:text-white">Your Bonds</h2>
-                    <p className="text-gray-500 dark:text-gray-400">Manage your bond holdings</p>
-                  </div>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 p-4 space-y-4">
-                    {isLoadingFarmConfigs || isLoadingBalances ? (
-                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">Loading bonds...</div>
-                    ) : farmConfigsError || balanceError ? (
-                      <div className="text-center py-8 text-red-600 dark:text-red-400">Error loading bonds</div>
-                    ) : farms.filter(({ balance }) => balance > 0).length === 0 ? (
-                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                        No bonds owned. <span 
-                          className="text-[#522912] dark:text-[#7A5540] cursor-pointer" 
-                          onClick={() => setOverviewTab("History")}
-                        >
-                          Buy bonds now
-                        </span>
-                      </div>
-                    ) : (
-                      farms
-                        .filter(({ balance }) => balance > 0)
-                        .map(({ farmId, config, balance }) => (
-                          <div key={farmId.toString()} className="border dark:border-gray-700 rounded-lg p-4">
-                            <div className="flex flex-col sm:flex-row justify-between gap-4">
-                              <div>
-                                <h4 className="font-medium dark:text-white">{config?.name || "N/A"}</h4>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Farm Owner: {truncateAddress(config?.farmOwner)}</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-sm text-gray-500 dark:text-gray-400">Bonds Owned</p>
-                                <p className="font-medium dark:text-white">{formatEther(balance)}</p>
-                              </div>
-                            </div>
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-4 gap-2">
-                              <div>
-                                <span className="text-sm text-gray-500 dark:text-gray-400 mr-2">Annual Interest:</span>
-                                <span className="font-medium dark:text-white">${(formatEther(Number(balance) * 10))}</span>
-                              </div>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="dark:border-gray-600 dark:text-gray-300"
-                                onClick={() => {
-                                  setSelectedFarmId(farmId.toString());
-                                  setIsPurchaseModalOpen(true);
-                                }}
-                              >
-                                Buy More
-                              </Button>
-                            </div>
-                          </div>
-                        ))
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* History Tab Content */}
-              {overviewTab === "History" && (
-                <div className="space-y-6">
-                  <div>
-                    <h2 className="text-xl font-bold dark:text-white">Available Farms</h2>
-                    <p className="text-gray-500 dark:text-gray-400">Browse farms offering bonds</p>
-                  </div>
-                  
-                  {/* Search and Filter Controls */}
-                  <div className="flex flex-col gap-4">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" size={18} />
-                      <Input
-                        placeholder="Search farms..."
-                        className="pl-10 bg-white dark:bg-gray-800 border dark:border-gray-700"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                    </div>
-                    
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <div className="flex-1">
-                        <Select value={sortBy} onValueChange={setSortBy}>
-                          <SelectTrigger className="w-full bg-white dark:bg-gray-800 border dark:border-gray-700">
-                            <SelectValue placeholder="Sort by" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="id">Farm ID</SelectItem>
-                            <SelectItem value="name">Name</SelectItem>
-                            <SelectItem value="bonds">Bond Count</SelectItem>
-                            <SelectItem value="interest">Annual Interest</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={toggleSortOrder}
-                        className="bg-white dark:bg-gray-800 border dark:border-gray-700"
-                      >
-                        {sortOrder === "asc" ? <ArrowUp size={18} /> : <ArrowDown size={18} />}
-                      </Button>
-                    </div>
-                    
-                    <Tabs defaultValue="All" value={marketTab} onValueChange={setMarketTab}>
-                      <TabsList className="bg-gray-100 dark:bg-gray-800">
-                        <TabsTrigger value="All">All</TabsTrigger>
-                        <TabsTrigger value="Active">
-                          Active
-                          <span className="ml-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full">
-                            {farms.filter(({ config }) => config?.active).length}
-                          </span>
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </div>
-                  
-                  {/* Farms Table */}
-                  <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead>
-                        <tr className="border-b dark:border-gray-800">
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Farm</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Bonds</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Interest</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Action</th>
+                <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="border-b dark:border-gray-800">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Farm</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Bonds Owned</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Annual Interest</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {isLoadingFarmConfigs || isLoadingBalances ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">Loading bonds...</td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {isLoadingActiveFarmIds || isLoadingFarmConfigs ? (
-                          <tr>
-                            <td colSpan={5} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
-                              Loading farms...
-                            </td>
-                          </tr>
-                        ) : activeFarmIdsError || farmConfigsError ? (
-                          <tr>
-                            <td colSpan={5} className="px-4 py-4 text-center text-red-600 dark:text-red-400">
-                              Error loading farms
-                            </td>
-                          </tr>
-                        ) : filteredFarms.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
-                              No farms found
-                            </td>
-                          </tr>
-                        ) : (
-                          filteredFarms.map(({ farmId, config, error }) => (
+                      ) : farmConfigsError || balanceError ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-4 text-center text-red-600 dark:text-red-400">Error loading bonds</td>
+                        </tr>
+                      ) : farms.filter(({ balance }) => balance > 0).length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
+                            No bonds owned. <Link href="/marketplace" className="text-[#522912] dark:text-[#7A5540] cursor-pointer">Buy bonds now</Link>
+                          </td>
+                        </tr>
+                      ) : (
+                        farms
+                          .filter(({ balance }) => balance > 0)
+                          .map(({ farmId, config, balance }) => (
                             <tr
                               key={farmId.toString()}
                               className="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
@@ -512,45 +476,31 @@ export default function Dashboard() {
                               <td className="px-4 py-4">
                                 <div className="flex flex-col">
                                   <span className="font-medium dark:text-white">{config?.name || "N/A"}</span>
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">{truncateAddress(config?.farmOwner)}</span>
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">Farm Owner: {truncateAddress(config?.farmOwner)}</span>
                                 </div>
                               </td>
                               <td className="px-4 py-4 text-right text-sm dark:text-white">
-                                {config?.treeCount.toString() || "N/A"}
+                                {formatEther(balance)}
                               </td>
                               <td className="px-4 py-4 text-right text-sm dark:text-white">
-                                ${Number(config?.treeCount || 0) * 10}
+                                ${Number(formatEther(balance)) * 10}
                               </td>
                               <td className="px-4 py-4 text-right">
-                                {error ? (
-                                  <span className="text-red-600 dark:text-red-400 text-sm">Error</span>
-                                ) : config?.active ? (
-                                  <span className="text-green-600 dark:text-green-400 text-sm">Active</span>
-                                ) : (
-                                  <span className="text-gray-500 dark:text-gray-400 text-sm">Inactive</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-4 text-right">
-                                <Button
-                                  size="sm"
+                                <Button 
+                                  size="sm" 
                                   className="bg-[#7A5540] hover:bg-[#6A4A36] text-white"
-                                  disabled={error || !config?.active}
-                                  onClick={() => {
-                                    setSelectedFarmId(farmId.toString());
-                                    setIsPurchaseModalOpen(true);
-                                  }}
+                                  onClick={() => config && handleBuyMoreClick(farmId.toString(), config.name, config.minInvestment)}
                                 >
-                                  Buy
+                                  Buy More
                                 </Button>
                               </td>
                             </tr>
                           ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Right Column (Quick Actions) */}
@@ -576,13 +526,12 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              <Button 
-                className="w-full bg-[#7A5540] hover:bg-[#6A4A36] text-white"
-                onClick={() => setIsPurchaseModalOpen(true)}
-              >
-                <Coffee className="mr-2 h-4 w-4" />
-                Buy Bonds
-              </Button>
+              <Link href="/marketplace">
+                <Button className="w-full bg-[#7A5540] hover:bg-[#6A4A36] text-white">
+                  <Coffee className="mr-2 h-4 w-4" />
+                  Buy Bonds
+                </Button>
+              </Link>
               
               <div className="text-center">
                 <button className="text-sm text-[#7A5540] dark:text-amber-600 font-medium flex items-center justify-center w-full">
@@ -594,79 +543,215 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Purchase Modal */}
+        {/* Purchase Bonds Modal */}
         <Dialog open={isPurchaseModalOpen} onOpenChange={setIsPurchaseModalOpen}>
-          <DialogContent className="bg-gray-50 dark:bg-gray-800 border dark:border-gray-700 sm:max-w-md">
+          <DialogContent className="bg-gray-50 dark:bg-gray-800 border-none p-6 text-gray-500 sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="text-lg sm:text-xl font-bold dark:text-white">Purchase Bonds</DialogTitle>
+              <DialogTitle className="text-xl font-bold dark:text-white">
+                Purchase Bondsfor {selectedFarmName || "Selected Farm"}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Select Farm</label>
-                <Select value={selectedFarmId} onValueChange={setSelectedFarmId}>
-                  <SelectTrigger className="w-full bg-white dark:bg-gray-800 border dark:border-gray-700">
-                    <SelectValue placeholder="Choose a farm" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {farms
-                      .filter(({ config }) => config?.active)
-                      .map(({ farmId, config }) => (
-                        <SelectItem key={farmId.toString()} value={farmId.toString()}>
-                          {config?.name} ({config?.shareTokenSymbol})
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Number of Bonds (1–20)</label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={bondAmount}
-                  onChange={(e) => setBondAmount(e.target.value)}
-                  className="bg-white dark:bg-gray-800 border dark:border-gray-700"
-                />
-              </div>
-              
-              <div className="bg-white dark:bg-gray-700 p-3 rounded-lg border dark:border-gray-600">
-                <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Cost</div>
-                <div className="text-lg font-bold dark:text-white">
-                  ${parseInt(bondAmount || "0") * BOND_PRICE_USD}.00
+              {!isConnected ? (
+                <div className="text-center">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    Please connect your wallet to purchase bonds.
+                  </p>
+                  <Button
+                    className="bg-[#7A5540] hover:bg-[#6A4A36] text-white border-none"
+                    onClick={handleConnectWallet}
+                  >
+                    Connect Wallet
+                  </Button>
                 </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                  ≈ {parseFloat(formatEther(parseEther((parseInt(bondAmount || "0") * BOND_PRICE_USD / 1000).toString()))).toFixed(4)} ETH
+              ) : purchaseSuccessDetails ? (
+                <div className="text-center py-8">
+                  <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                  <h3 className="text-2xl font-bold mb-2 dark:text-white">Purchase Successful!</h3>
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">
+                    You have purchased {purchaseSuccessDetails.bonds.toFixed(2)} bonds for {purchaseSuccessDetails.farmName}.
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Transaction Hash: {truncateAddress(purchaseSuccessDetails.txHash)}
+                  </p>
                 </div>
-              </div>
-              
-              {purchaseError && (
-                <div className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm">
-                  {purchaseError}
-                </div>
+              ) : (
+                <>
+                  <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Your MBT Balance:</span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">{formatMbtBalance()} MBT</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Min Investment:</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-200">{minInvestmentNum.toFixed(2)} MBT</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Max Investment:</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-200">{maxInvestmentNum.toFixed(2)} MBT</span>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-1">
+                      MBT Amount ({minInvestmentNum.toFixed(2)}–{maxInvestmentNum.toFixed(2)} MBT)
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={decrementAmount} 
+                        disabled={mbtAmountNum <= minInvestmentNum}
+                        className="bg-white dark:bg-gray-800 border-none"
+                      >
+                        -
+                      </Button>
+                      <Input
+                        type="text"
+                        value={mbtAmount}
+                        onChange={(e) => handleMbtAmountChange(e.target.value)}
+                        className="bg-white dark:bg-gray-800 border-none text-center"
+                        placeholder={minInvestmentNum.toFixed(2)}
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={incrementAmount} 
+                        disabled={mbtAmountNum >= maxMbtAllowed}
+                        className="bg-white dark:bg-gray-800 border-none"
+                      >
+                        +
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        onClick={setMaxAmount}
+                        disabled={maxMbtAllowed <= minInvestmentNum}
+                        className="text-sm text-[#7A5540] dark:text-[#A57A5F]"
+                      >
+                        Max
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Bond Cost:</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-200">{BOND_MBT} MBT per bond</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total MBT Cost:</span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">
+                        {mbtAmountNum.toFixed(2)} MBT
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Bonds to Purchase:</span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">
+                        {bondCount.toFixed(2)} bonds
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">USD Equivalent:</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-200">
+                        ${(mbtAmountNum * MBT_PRICE_USD).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {!hasSufficientBalance && mbtAmount && (
+                    <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800 flex items-center">
+                      <AlertTriangle className="w-5 h-5 mr-2 text-red-600 dark:text-red-400" />
+                      <p className="text-red-600 dark:text-red-400 text-sm">Insufficient MBT balance</p>
+                    </div>
+                  )}
+
+                  {needsApproval && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                      <div className="flex items-center">
+                        <AlertTriangle className="w-5 h-5 mr-2 text-yellow-800 dark:text-yellow-200" />
+                        <div className="text-yellow-800 dark:text-yellow-200 text-sm">
+                          Approval required: Approve {mbtAmountNum.toFixed(2)} MBT for spending
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {purchaseError && (
+                    <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">
+                      <p className="text-red-600 dark:text-red-400 text-sm">{purchaseError}</p>
+                    </div>
+                  )}
+
+                  {isApproving && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <p className="text-blue-600 dark:text-blue-400 text-sm">Approving MBT tokens...</p>
+                    </div>
+                  )}
+
+                  {isApprovePending && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                      <p className="text-yellow-600 dark:text-yellow-400 text-sm">Approval transaction pending...</p>
+                    </div>
+                  )}
+
+                  {isPurchasePending && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                      <p className="text-yellow-600 dark:text-yellow-400 text-sm">Purchase transaction pending...</p>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+                    <p className="mb-1">
+                      <strong>Important:</strong> By proceeding, you agree to:
+                    </p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>Complete KYC/AML verification if required</li>
+                      <li>Receive digital bond tokens upon successful payment</li>
+                      <li>Terms and conditions of the bond purchase agreement</li>
+                    </ul>
+                    <p className="mt-2">
+                      Note: 1 bond is equivalent to $100 and requires {BOND_MBT} MBT (since 1 MBT = 1kg roasted coffee ≈ $25). Fractional ownership is supported, with minimum $1 investment (0.04 MBT for 0.01 bond or 1% of a full bond). This enables micro-investing in agricultural assets.
+                    </p>
+                  </div>
+                </>
               )}
-              
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                By proceeding, you agree to complete KYC/AML verification and receive digital bond tokens upon payment.
-              </p>
             </div>
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                variant="outline"
-                className="dark:border-gray-600 dark:text-gray-300"
-                onClick={() => setIsPurchaseModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="bg-[#7A5540] hover:bg-[#6A4A36] text-white"
-                onClick={handlePurchase}
-                disabled={isPending || !selectedFarmId || !bondAmount}
-              >
-                {isPending ? "Processing..." : "Purchase Bonds"}
-              </Button>
-            </DialogFooter>
+            
+            {isConnected && (
+              <DialogFooter className="mt-6 flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-300 border-none"
+                  onClick={() => {
+                    setIsPurchaseModalOpen(false);
+                  }}
+                  disabled={isApprovePending || isPurchasePending || isApproving}
+                >
+                  {purchaseSuccessDetails ? "Close" : "Cancel"}
+                </Button>
+                {!purchaseSuccessDetails && (
+                  <>
+                    {needsApproval ? (
+                      <Button
+                        className="bg-[#7A5540] hover:bg-[#6A4A36] text-white border-none"
+                        onClick={handleApprove}
+                        disabled={!canProceed || isApproving || isApprovePending || isPurchasePending}
+                      >
+                        {isApproving || isApprovePending ? "Approving..." : `Approve ${mbtAmountNum.toFixed(2)} MBT`}
+                      </Button>
+                    ) : (
+                      <Button
+                        className="bg-[#7A5540] hover:bg-[#6A4A36] text-white border-none"
+                        onClick={handlePurchase}
+                        disabled={!canProceed || isApproving || isApprovePending || isPurchasePending}
+                      >
+                        {isPurchasePending ? "Purchasing..." : `Purchase ${bondCount.toFixed(2)} Bonds`}
+                      </Button>
+                    )}
+                  </>
+                )}
+              </DialogFooter>
+            )}
           </DialogContent>
         </Dialog>
       </div>

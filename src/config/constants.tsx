@@ -48,8 +48,11 @@ export const MBT_TOKEN_ABI = [
 ] as const;
 
 
-export const MOCHA_TREE_CONTRACT_ADDRESS = "0x4b02Bada976702E83Cf91Cd0B896852099099352" as const;
-export const MBT_TOKEN_ADDRESS = "0xb75083585DcB841b8B04ffAC89c78a16f2a5598B" as const;
-export const MOCHA_TREE_CONTRACT_ABI = vault.abi;
+export const TREE_CONTRACT_ADDRESS = "0x22CBb67b45a95bE78bBaBa8a1196b49eFd1dFa5e" as const;
+export const MBT_ADDRESS = "0xb75083585DcB841b8B04ffAC89c78a16f2a5598B" as const;
+export const TREE_CONTRACT_ABI = vault.abi;
 
 export const MBT_DECIMALS = 18;
+
+// prev tree contract = 0x4b02Bada976702E83Cf91Cd0B896852099099352
+

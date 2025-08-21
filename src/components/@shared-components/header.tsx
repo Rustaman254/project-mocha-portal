@@ -1,3 +1,5 @@
+"use client"
+
 import { useEffect, useState } from "react"
 import { Moon, Sun, Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -9,7 +11,7 @@ import { StatRectangle } from "./stat-rectangle"
 import { useAccount, useReadContract } from "wagmi";
 import { scrollSepolia } from "viem/chains";
 import { formatUnits, formatEther } from "viem"
-import { MBT_TOKEN_ADDRESS, MBT_TOKEN_ABI, MBT_DECIMALS, MOCHA_TREE_CONTRACT_ADDRESS, MOCHA_TREE_CONTRACT_ABI } from "@/config/constants"
+import { MBT_ADDRESS, MBT_TOKEN_ABI, MBT_DECIMALS, TREE_CONTRACT_ADDRESS, TREE_CONTRACT_ABI } from "@/config/constants"
 
 const NAV_LINKS = [
   { label: "Dashboard", href: "/", enabled: true },
@@ -20,7 +22,7 @@ const NAV_LINKS = [
 
 export default function Header() {
   const { address: userAddress, isConnected } = useAccount();
-  const [darkMode, setDarkMode] = useState(true)
+  const [darkMode, setDarkMode] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   const { open } = useAppKit()
@@ -55,7 +57,7 @@ export default function Header() {
     isLoading: mbtLoading,
     refetch: refetchMbtBalance 
   } = useReadContract({
-    address: MBT_TOKEN_ADDRESS,
+    address: MBT_ADDRESS,
     abi: MBT_TOKEN_ABI,
     functionName: 'balanceOf',
     args: [userAddress],
@@ -71,8 +73,8 @@ export default function Header() {
     error: bondsError,
     isLoading: bondsLoading,
   } = useReadContract({
-    address: MOCHA_TREE_CONTRACT_ADDRESS,
-    abi: MOCHA_TREE_CONTRACT_ABI,
+    address: TREE_CONTRACT_ADDRESS,
+    abi: TREE_CONTRACT_ABI,
     functionName: 'totalActiveBonds',
     chainId: scrollSepolia.id,
     query: { 
@@ -86,8 +88,8 @@ export default function Header() {
     error: tvlError,
     isLoading: tvlLoading,
   } = useReadContract({
-    address: MOCHA_TREE_CONTRACT_ADDRESS,
-    abi: MOCHA_TREE_CONTRACT_ABI,
+    address: TREE_CONTRACT_ADDRESS,
+    abi: TREE_CONTRACT_ABI,
     functionName: 'totalValueLocked',
     chainId: scrollSepolia.id,
     query: { 
@@ -119,45 +121,46 @@ export default function Header() {
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50 bg-[transparent] dark:bg-[transparent]">
-      <div className="mx-auto flex items-center justify-between py-4 px-4 sm:px-6 lg:px-12">
+      <div className="mx-auto flex items-center justify-between py-3 lg:py-4 px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 max-w-[1800px]">
         {/* Logo and stats */}
-        <div className="flex items-center space-x-2 sm:space-x-4">
-          <Image
-            src={darkMode ? "/Brand/mocha-white.svg" : "/Brand/mocha-brown.png"}
-            alt="Project Logo"
-            width={60}
-            height={60}
-            className="object-fit"
-          />
+        <div className="flex items-center space-x-3 sm:space-x-4 lg:space-x-6">
+          <div className="relative w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16">
+            <Image
+              src={darkMode ? "/Brand/mocha-white.svg" : "/Brand/mocha-brown.png"}
+              alt="Project Logo"
+              fill
+              className="object-contain"
+            />
+          </div>
 
           {/* Stats - hidden on mobile */}
-          <div className="hidden md:flex items-center gap-3 text-sm">
+          <div className="hidden md:flex items-center gap-2 lg:gap-3 text-xs lg:text-sm">
             <StatRectangle 
-              label="My MBT Balance" 
+              label="MBT Balance" 
               value={`${formatMbtBalance()} MBT`} 
               valueColor="text-green-400" 
             />
             <StatRectangle 
-              label="Total Value Locked" 
+              label="TVL" 
               value={`${formatTotalValueLocked()} MBT`}
               valueColor="text-green-400" 
             />
             <StatRectangle 
               label="Total Active Bonds" 
-              value={`${formatTotalActiveBonds()} bonds`}
+              value={`${formatTotalActiveBonds()}`}
               valueColor="text-green-400" 
             />
           </div>
         </div>
 
         {/* Desktop navigation */}
-        <div className="hidden md:flex items-center space-x-4">
-          <nav className="border dark:border-gray-800 bg-white dark:bg-gray-800 bg-gray-300 rounded-full px-6 py-2">
-            <div className="flex items-center space-x-2">
+        <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
+          <nav className="border dark:border-gray-800 bg-white dark:bg-gray-800 bg-gray-300 rounded-full px-4 lg:px-6 py-1 lg:py-2">
+            <div className="flex items-center space-x-1 lg:space-x-2">
               {NAV_LINKS.filter(link => link.enabled).map((link) => (
                 <Link key={link.label} href={link.href}>
                   <button
-                    className={`px-4 py-1.5 rounded-full flex items-center transition-colors
+                    className={`px-3 lg:px-4 py-1 lg:py-1.5 rounded-full flex items-center transition-colors text-xs lg:text-sm
                       ${pathname === link.href ? "text-[#522912] dark:text-white font-semibold" : "text-gray-400 hover:text-[#522912]"}`}
                   >
                     {link.label}
@@ -167,45 +170,49 @@ export default function Header() {
             </div>
           </nav>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 lg:space-x-3">
             <Button
               variant="outline"
               size="icon"
               onClick={toggleDarkMode}
-              className="rounded-full bg-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="rounded-full bg-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 h-8 w-8 lg:h-10 lg:w-10"
             >
-              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5 text-gray-700" />}
+              {darkMode ? <Sun className="h-4 w-4 lg:h-5 lg:w-5" /> : <Moon className="h-4 w-4 lg:h-5 lg:w-5 text-gray-700" />}
             </Button>
 
-            <appkit-button />
+            <div className="scale-90 lg:scale-100">
+              <appkit-button />
+            </div>
           </div>
         </div>
 
-        {/* Mobile menu button and wallet - all buttons together */}
+        {/* Mobile menu button and wallet */}
         <div className="flex md:hidden items-center space-x-2">
-          <appkit-button className="mr-2" />
+          <div className="scale-90">
+            <appkit-button />
+          </div>
           
           <Button
             variant="outline"
             size="icon"
             onClick={toggleDarkMode}
-            className="rounded-full bg-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="rounded-full bg-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 h-8 w-8"
           >
-            {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5 text-gray-700" />}
+            {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4 text-gray-700" />}
           </Button>
 
           <Button
             variant="outline"
             size="icon"
             onClick={toggleMobileMenu}
-            className="rounded-full bg-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="rounded-full bg-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 h-8 w-8"
           >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>
         </div>
       </div>
 
-      {/* Enhanced Mobile Menu (without wallet button) */}
+      {/* Enhanced Mobile Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-white dark:bg-gray-900 shadow-xl rounded-b-2xl mx-4 border dark:border-gray-700 overflow-hidden">
           {/* Stats Cards */}
@@ -216,8 +223,6 @@ export default function Header() {
                   label="My MBT" 
                   value={`${formatMbtBalance()} MBT`} 
                   valueColor="text-green-400" 
-                  className="text-xs"
-                  compact
                 />
               </div>
               <div className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm border dark:border-gray-600">
@@ -225,8 +230,6 @@ export default function Header() {
                   label="TVL" 
                   value={`${formatTotalValueLocked()} MBT`}
                   valueColor="text-green-400" 
-                  className="text-xs"
-                  compact
                 />
               </div>
               <div className="bg-white dark:bg-gray-700 p-3 rounded-lg shadow-sm border dark:border-gray-600 col-span-2">
@@ -234,8 +237,6 @@ export default function Header() {
                   label="Active Bonds" 
                   value={`${formatTotalActiveBonds()}`}
                   valueColor="text-green-400" 
-                  className="text-xs"
-                  compact
                 />
               </div>
             </div>

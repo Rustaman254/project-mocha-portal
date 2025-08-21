@@ -11,8 +11,8 @@ import { useAccount, useReadContract, useReadContracts, useWriteContract, usePub
 import { parseUnits, formatUnits } from "viem"
 import { scrollSepolia } from "viem/chains"
 import Header from "@/components/@shared-components/header"
-import vault from "@/ABI/MochaTreeRightsABI.json"
 import { Toaster, toast } from "sonner"
+import { TREE_CONTRACT_ADDRESS, MBT_ADDRESS, TREE_CONTRACT_ABI } from "@/config/constants" 
 
 // Types
 interface FarmConfig {
@@ -45,10 +45,9 @@ interface SelectedFarmData {
 }
 
 // Contract addresses and constants
-const MOCHA_TREE_CONTRACT_ADDRESS = "0x4b02Bada976702E83Cf91Cd0B896852099099352" as const;
-const MBT_TOKEN_ADDRESS = "0xb75083585DcB841b8B04ffAC89c78a16f2a5598B" as const;
-import type { Abi } from "viem";
-const MOCHA_TREE_CONTRACT_ABI = vault.abi;
+const MOCHA_TREE_CONTRACT_ADDRESS = TREE_CONTRACT_ADDRESS;
+const MBT_TOKEN_ADDRESS = MBT_ADDRESS;
+const MOCHA_TREE_CONTRACT_ABI = TREE_CONTRACT_ABI;
 
 // MBT Token ABI
 const MBT_TOKEN_ABI = [
@@ -99,6 +98,8 @@ const MBT_TOKEN_ABI = [
 ] as const;
 
 const BOND_PRICE_USD = 100;
+const MBT_PRICE_USD = 25;
+const BOND_MBT = BOND_PRICE_USD / MBT_PRICE_USD; // 4 MBT per full bond
 const MBT_DECIMALS = 18;
 
 // Logging utility
@@ -147,7 +148,7 @@ export default function Marketplace() {
 
   const { data: farmConfigsData, isLoading: isLoadingFarmConfigs, error: farmConfigsError } = useReadContracts({
     contracts: farmConfigContracts,
-  });
+  })
 
   // MBT Token balance and allowance
   const { data: mbtBalance, refetch: refetchMbtBalance } = useReadContract({
@@ -176,6 +177,7 @@ export default function Marketplace() {
         error: result.status === 'failure' ? (result.error as Error) : null,
       }))
     : [];
+
 
   // Filter and sort farms
   const filteredFarms = farms
@@ -289,7 +291,6 @@ export default function Marketplace() {
 
     const totalCost = parseUnits(amount.toString(), MBT_DECIMALS);
     
-    // Check MBT balance
     if (!mbtBalance || BigInt(mbtBalance as bigint) < totalCost) {
       setPurchaseError(`Insufficient MBT balance. You need ${formatUnits(totalCost, MBT_DECIMALS)} MBT`);
       logAction("Purchase Failed: Insufficient MBT balance", { 
@@ -308,13 +309,13 @@ export default function Marketplace() {
         address: MOCHA_TREE_CONTRACT_ADDRESS,
         abi: MOCHA_TREE_CONTRACT_ABI,
         functionName: 'purchaseBond',
-        args: [BigInt(selectedFarmId), totalCost],
+        args: [selectedFarmId, totalCost],
       });
 
-      const bonds = Math.floor(bondCount);
+      const bonds = mbtAmountNum / BOND_MBT;
       setPurchaseSuccessDetails({ bonds, farmName: selectedFarmName, txHash });
       setPurchaseError("");
-      toast.success(`Successfully purchased ${bonds} bonds for ${selectedFarmName}! Transaction: ${txHash}`);
+      toast.success(`Successfully purchased ${bonds.toFixed(2)} bonds for ${selectedFarmName}! Transaction: ${txHash}`);
       logAction("Bond Purchase Successful", { 
         userAddress, 
         farmId: selectedFarmId, 
@@ -486,7 +487,7 @@ export default function Marketplace() {
   const maxMbtAllowed = maxInvestmentNum;
   const isValidAmount = mbtAmountNum >= minInvestmentNum && mbtAmountNum <= maxMbtAllowed;
   const totalCost = useMemo(() => parseUnits(mbtAmountNum.toString(), MBT_DECIMALS), [mbtAmountNum]);
-  const bondCount = mbtAmountNum; // 1 MBT = 1 bond
+  const bondCount = mbtAmountNum / BOND_MBT; // 1 bond = 4 MBT (1 MBT = $25, bond = $100)
   const hasSufficientBalance = useMemo(() => mbtBalance ? BigInt(mbtBalance as bigint) >= totalCost : false, [mbtBalance, totalCost]);
   const needsApproval = useMemo(() => mbtAllowance ? BigInt(mbtAllowance as bigint) < totalCost : true, [mbtAllowance, totalCost]);
   const canProceed = isValidAmount && hasSufficientBalance;
@@ -532,13 +533,13 @@ export default function Marketplace() {
 
   return (
     <div className="min-h-screen bg-[#E6E6E6] dark:bg-gray-900 transition-colors duration-200 text-gray-900 dark:text-white">
-      <Toaster richColors position="bottom-right" />
+      <Toaster richColors position="bottom-right-right" />
       <Header />
       <div className="pt-[72px]">
-        <div className="py-8 px-4 md:px-8">
+        <div className="mx-auto py-6 px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 max-w-[1800px]">
           <div className="mb-6">
-            <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">MARKETPLACE</div>
-            <h1 className="text-3xl font-bold dark:text-white">Mocha Asset-Backed Bonds Marketplace</h1>
+            <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">Mocha Asset-Backed Bonds Marketplace</div>
+            <h1 className="text-3xl font-bold dark:text-white">Marketplace</h1>
             {isConnected && (
               <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                 MBT Balance: {formatMbtBalance()} MBT
@@ -844,7 +845,7 @@ export default function Marketplace() {
                     <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
                     <h3 className="text-2xl font-bold mb-2 dark:text-white">Purchase Successful!</h3>
                     <p className="text-gray-600 dark:text-gray-300 mb-4">
-                      You have purchased {purchaseSuccessDetails.bonds} bonds for {purchaseSuccessDetails.farmName}.
+                      You have purchased {purchaseSuccessDetails.bonds.toFixed(2)} bonds for {purchaseSuccessDetails.farmName}.
                     </p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       Transaction Hash: {truncateAddress(purchaseSuccessDetails.txHash)}
@@ -911,7 +912,7 @@ export default function Marketplace() {
                     <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Bond Cost:</span>
-                        <span className="text-sm text-gray-700 dark:text-gray-200">1 MBT per bond</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-200">{BOND_MBT} MBT per bond</span>
                       </div>
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total MBT Cost:</span>
@@ -922,13 +923,13 @@ export default function Marketplace() {
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Bonds to Purchase:</span>
                         <span className="text-sm font-bold text-gray-900 dark:text-white">
-                          {Math.floor(bondCount)} bonds
+                          {bondCount.toFixed(2)} bonds
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium text-gray-600 dark:text-gray-300">USD Equivalent:</span>
                         <span className="text-sm text-gray-700 dark:text-gray-200">
-                          ${(Math.floor(bondCount) * BOND_PRICE_USD).toLocaleString()}
+                          ${(mbtAmountNum * MBT_PRICE_USD).toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -984,6 +985,9 @@ export default function Marketplace() {
                         <li>Receive digital bond tokens upon successful payment</li>
                         <li>Terms and conditions of the bond purchase agreement</li>
                       </ul>
+                      <p className="mt-2">
+                        Note: 1 bond is equivalent to $100 and requires {BOND_MBT} MBT (since 1 MBT = 1kg roasted coffee ≈ $25). Fractional ownership is supported, with minimum $1 investment (0.04 MBT for 0.01 bond or 1% of a full bond). This enables micro-investing in agricultural assets.
+                      </p>
                     </div>
                   </>
                 )}
@@ -1018,7 +1022,7 @@ export default function Marketplace() {
                           onClick={handlePurchase}
                           disabled={!canProceed || isApproving || isApprovePending || isPurchasePending}
                         >
-                          {isPurchasePending ? "Purchasing..." : `Purchase ${Math.floor(bondCount)} Bonds`}
+                          {isPurchasePending ? "Purchasing..." : `Purchase ${bondCount.toFixed(2)} Bonds`}
                         </Button>
                       )}
                     </>

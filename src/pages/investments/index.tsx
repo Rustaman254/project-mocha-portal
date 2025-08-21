@@ -1,38 +1,124 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronDown, BarChart, Calendar, Clock, Moon, Sun } from "lucide-react";
+import { ChevronDown, BarChart, Calendar, Clock, Moon, Sun, AlertTriangle, CheckCircle, ArrowUp, ArrowDown, Coffee, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAccount, useReadContracts, useReadContract, useWriteContract, useBalance } from "wagmi";
-import { formatEther } from "viem";
+import { Input } from "@/components/ui/input";
+import { useAccount, useReadContracts, useReadContract, useWriteContract, usePublicClient } from "wagmi";
+import { formatUnits, parseUnits } from "viem";
 import { scrollSepolia } from "viem/chains";
-import vault from "@/ABI/MochaTreeRightsABI.json";
 import Header from "@/components/@shared-components/header";
+import { Toaster, toast } from "sonner";
+import { TREE_CONTRACT_ADDRESS, TREE_CONTRACT_ABI, MBT_ADDRESS } from "@/config/constants";
 
-const MOCHA_TREE_CONTRACT_ADDRESS = "0x4b02Bada976702E83Cf91Cd0B896852099099352";
-const MOCHA_TREE_CONTRACT_ABI = vault.abi;
-const ETH_PRICE_USD = 1000;
+const MOCHA_TREE_CONTRACT_ADDRESS = TREE_CONTRACT_ADDRESS;
+const MOCHA_TREE_CONTRACT_ABI = TREE_CONTRACT_ABI;
+const MBT_TOKEN_ADDRESS = MBT_ADDRESS;
+const BOND_PRICE_USD = 100;
+const MBT_PRICE_USD = 25;
+const BOND_MBT = BOND_PRICE_USD / MBT_PRICE_USD;
 const EARLY_REDEMPTION_PENALTY = 0.2;
+const MBT_DECIMALS = 18;
 
-// Placeholder for bond IDs (assumed to be provided externally, e.g., via props or context)
-const PLACEHOLDER_BOND_IDS = [1, 2, 3]; // Replace with actual bond IDs from an off-chain source
+const MBT_TOKEN_ABI = [
+  {
+    constant: true,
+    inputs: [{ name: "_owner", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ name: "balance", type: "uint256" }],
+    type: "function",
+  },
+  {
+    constant: false,
+    inputs: [
+      { name: "_spender", type: "address" },
+      { name: "_value", type: "uint256" },
+    ],
+    name: "approve",
+    outputs: [{ name: "success", type: "bool" }],
+    type: "function",
+  },
+  {
+    constant: true,
+    inputs: [
+      { name: "_owner", type: "address" },
+      { name: "_spender", type: "address" }
+    ],
+    name: "allowance",
+    outputs: [{ name: "remaining", type: "uint256" }],
+    type: "function",
+  },
+] as const;
 
-export default function Investments({ userBondIds = PLACEHOLDER_BOND_IDS }) {
+// Fix for hydration error - detect client-side only
+const useIsClient = () => {
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  return isClient;
+};
+
+export default function Investments() {
+  const isClient = useIsClient();
   const { address: userAddress, isConnected } = useAccount();
-  const [activeTab, setActiveTab] = useState("Investments");
+  const publicClient = usePublicClient({ chainId: scrollSepolia.id });
   const [investmentTab, setInvestmentTab] = useState("active");
-  const [isLoading, setIsLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [isRedeemModalOpen, setIsRedeemModalOpen] = useState(false);
   const [isRolloverModalOpen, setIsRolloverModalOpen] = useState(false);
-  const [selectedBondId, setSelectedBondId] = useState("");
+  const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
   const [selectedFarmId, setSelectedFarmId] = useState("");
-  const [actionError, setActionError] = useState("");
+  const [selectedFarmName, setSelectedFarmName] = useState("");
+  const [selectedBondIds, setSelectedBondIds] = useState([]);
+  const [selectedBondsCount, setSelectedBondsCount] = useState(0);
+  const [isEarlyRedemption, setIsEarlyRedemption] = useState(false);
+  const [mbtAmount, setMbtAmount] = useState("");
+  const [purchaseError, setPurchaseError] = useState("");
+  const [isApproving, setIsApproving] = useState(false);
+  const [approvalTxHash, setApprovalTxHash] = useState("");
+  const [purchaseSuccessDetails, setPurchaseSuccessDetails] = useState(null);
+  const [redeemSuccessDetails, setRedeemSuccessDetails] = useState(null);
+  const [rolloverSuccessDetails, setRolloverSuccessDetails] = useState(null);
+
+  // Fix for dark mode hydration
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedMode = localStorage.getItem("darkMode");
+      if (savedMode !== null) {
+        setDarkMode(savedMode === "true");
+      } else {
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        setDarkMode(prefersDark);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("darkMode", darkMode.toString());
+    }
+  }, [darkMode]);
+
+  // Fetch user's bond IDs
+  const { data: userBondIds, isLoading: isLoadingBondIds, refetch: refetchBondIds } = useReadContract({
+    address: MOCHA_TREE_CONTRACT_ADDRESS,
+    abi: MOCHA_TREE_CONTRACT_ABI,
+    functionName: "getUserBondIds",
+    args: [userAddress],
+    chainId: scrollSepolia.id,
+    query: { enabled: isConnected && isClient },
+  });
 
   // Fetch bond positions
   const bondPositionContracts = userBondIds
@@ -40,22 +126,22 @@ export default function Investments({ userBondIds = PLACEHOLDER_BOND_IDS }) {
         address: MOCHA_TREE_CONTRACT_ADDRESS,
         abi: MOCHA_TREE_CONTRACT_ABI,
         functionName: "getBondPosition",
-        args: [userAddress, BigInt(bondId)],
+        args: [userAddress, bondId],
         chainId: scrollSepolia.id,
       }))
     : [];
 
   const { data: bondPositionsData, isLoading: isLoadingBondPositions, error: bondPositionsError } = useReadContracts({
     contracts: bondPositionContracts,
-    query: { enabled: isConnected && userBondIds.length > 0 },
+    query: { enabled: isConnected && userBondIds?.length > 0 && isClient },
   });
 
-  // Fetch farm configurations
-  const farmIds = bondPositionsData
+  // Fetch unique farm configs
+  const farmIds = [...new Set(bondPositionsData
     ? bondPositionsData
-        .map((result) => (result.status === "success" && !result.result.redeemed ? result.result.farmId : null))
+        .map((result, index) => (result.status === "success" ? result.result.farmId : null))
         .filter(Boolean)
-    : [];
+    : [])];
 
   const farmConfigContracts = farmIds
     ? farmIds.map((farmId) => ({
@@ -69,174 +155,334 @@ export default function Investments({ userBondIds = PLACEHOLDER_BOND_IDS }) {
 
   const { data: farmConfigsData, isLoading: isLoadingFarmConfigs, error: farmConfigsError } = useReadContracts({
     contracts: farmConfigContracts,
-    query: { enabled: farmIds.length > 0 },
+    query: { enabled: farmIds.length > 0 && isClient },
   });
 
-  // Fetch yield distribution for chart
-  const yieldDistributionContracts = farmIds
-    ? farmIds.map((farmId) => ({
-        address: MOCHA_TREE_CONTRACT_ADDRESS,
-        abi: MOCHA_TREE_CONTRACT_ABI,
-        functionName: "getYieldDistribution",
-        args: [farmId],
-        chainId: scrollSepolia.id,
-      }))
-    : [];
-
-  const { data: yieldDistributionsData, isLoading: isLoadingYields, error: yieldsError } = useReadContracts({
-    contracts: yieldDistributionContracts,
-    query: { enabled: farmIds.length > 0 },
-  });
-
+  // Fetch active farm IDs for rollover
   const { data: activeFarmIds } = useReadContract({
     address: MOCHA_TREE_CONTRACT_ADDRESS,
     abi: MOCHA_TREE_CONTRACT_ABI,
     functionName: "getActiveFarmIds",
     chainId: scrollSepolia.id,
-    query: { enabled: isConnected },
+    query: { enabled: isConnected && isClient },
   });
 
-  const { data: ethBalance } = useBalance({
-    address: userAddress,
+  // MBT balance and allowance
+  const { data: mbtBalance, refetch: refetchMbtBalance } = useReadContract({
+    address: MBT_TOKEN_ADDRESS,
+    abi: MBT_TOKEN_ABI,
+    functionName: "balanceOf",
+    args: [userAddress],
     chainId: scrollSepolia.id,
-    query: { enabled: isConnected },
+    query: { enabled: isConnected && isClient },
   });
 
-  const { writeContract, isPending, isSuccess, error: writeError } = useWriteContract();
+  const { data: mbtAllowance, refetch: refetchAllowance } = useReadContract({
+    address: MBT_TOKEN_ADDRESS,
+    abi: MBT_TOKEN_ABI,
+    functionName: "allowance",
+    args: [userAddress, MOCHA_TREE_CONTRACT_ADDRESS],
+    chainId: scrollSepolia.id,
+    query: { enabled: isConnected && isClient },
+  });
 
-  // Process bond data
-  const bonds = bondPositionsData
-    ? bondPositionsData.map((result, index) => {
-        const bondId = userBondIds[index];
-        const data = result.status === "success" ? result.result : null;
-        const farmData =
-          farmConfigsData && farmConfigsData[index]?.status === "success" ? farmConfigsData[index].result : null;
-        const now = Math.floor(Date.now() / 1000);
-        const status = data
-          ? data.redeemed
-            ? "Redeemed"
-            : data.maturityTimestamp <= now
-            ? "Matured"
-            : "Active"
-          : "Error";
-        return {
-          bondId,
-          data: data
-            ? {
-                farmId: data.farmId,
-                mbtAmount: data.depositAmount,
-                purchaseDate: data.depositTimestamp,
-                maturityDate: data.maturityTimestamp,
-                status,
-              }
-            : null,
-          farmData,
-          error: result.status === "failure" ? result.error : null,
-        };
-      })
-    : [];
+  const { writeContractAsync: writeApprove, isPending: isApprovePending } = useWriteContract();
+  const { writeContractAsync: writePurchase, isPending: isPurchasePending } = useWriteContract();
+  const { writeContractAsync: writeRedeem, isPending: isRedeemPending } = useWriteContract();
+  const { writeContractAsync: writeRedeemEarly, isPending: isRedeemEarlyPending } = useWriteContract();
+  const { writeContractAsync: writeRollover, isPending: isRolloverPending } = useWriteContract();
 
-  const activeBonds = bonds.filter(
-    ({ data, farmData }) => data?.status === "Active" && farmData?.active
-  );
-  const maturedBonds = bonds.filter(({ data }) => data?.status === "Matured");
-  const redeemedBonds = bonds.filter(({ data }) => data?.status === "Redeemed");
-  const totalBonds = bonds.reduce((sum, { data }) => sum + (data ? Number(data.mbtAmount) : 0), 0);
-  const totalValue = totalBonds * 0.1; // 1 MBT = 0.1 ETH
+  // Process data
+  const farmGroups = {};
+  const redeemedBonds = [];
+  const now = Math.floor(Date.now() / 1000);
 
-  // Process yield distribution for chart
-  const monthlyReturns = yieldDistributionsData
-    ? yieldDistributionsData.map((result, index) => {
-        const farmId = farmIds[index];
-        const farm = farmConfigsData?.find((f, i) => f.status === "success" && farmIds[i] === farmId);
-        const yieldData = result.status === "success" ? result.result : null;
-        return {
-          farmName: farm?.status === "success" ? farm.result.name : `Farm ${farmId}`,
-          totalYield: yieldData ? Number(formatEther(yieldData.totalYield)) : 0,
-        };
-      })
-    : [];
+  bondPositionsData?.forEach((result, index) => {
+    const bondId = userBondIds[index];
+    if (result.status === "success") {
+      const data = result.result;
+      const farmData = farmConfigsData?.find((f) => f.result.farmId === data.farmId);
+      if (data.redeemed) {
+        redeemedBonds.push({ bondId, data, farmData });
+      } else {
+        const farmId = data.farmId.toString();
+        if (!farmGroups[farmId]) {
+          farmGroups[farmId] = { bondIds: [], totalMBT: 0n, farmData: null, maturityTimestamp: data.maturityTimestamp };
+        }
+        farmGroups[farmId].bondIds.push(bondId.toString());
+        farmGroups[farmId].totalMBT += data.depositAmount;
+        farmGroups[farmId].farmData = farmData?.result;
+      }
+    }
+  });
 
-  const handleConnectWallet = () => {
-    // Ensure openfort is defined and has a connect method
-    if (typeof window !== "undefined" && window.openfort && typeof window.openfort.connect === "function") {
-      window.openfort.connect();
-    } else {
-      console.error("Openfort SDK not loaded or connect method unavailable");
-      setActionError("Wallet connection failed. Please ensure the Openfort SDK is properly configured.");
+  const activeFarms = [];
+  const maturedFarms = [];
+
+  Object.entries(farmGroups).forEach(([farmId, group]) => {
+    if (group.farmData) {
+      const totalMBTNum = Number(formatUnits(group.totalMBT, MBT_DECIMALS));
+      const totalBonds = totalMBTNum / BOND_MBT;
+      const apy = Number(group.farmData.targetAPY) / 10000;
+      const annualInterest = totalBonds * BOND_PRICE_USD * apy;
+      const entry = {
+        farmId,
+        name: group.farmData.name,
+        owner: group.farmData.farmOwner,
+        totalBonds,
+        annualInterest,
+        bondIds: group.bondIds,
+        minInvestment: group.farmData.minInvestment,
+        maxInvestment: group.farmData.maxInvestment,
+        maturityTimestamp: group.maturityTimestamp,
+      };
+      if (group.maturityTimestamp > now) {
+        activeFarms.push(entry);
+      } else {
+        maturedFarms.push(entry);
+      }
+    }
+  });
+
+  const totalBondsOwned = [...activeFarms, ...maturedFarms].reduce((sum, f) => sum + f.totalBonds, 0);
+  const totalAnnualInterest = [...activeFarms, ...maturedFarms].reduce((sum, f) => sum + f.annualInterest, 0);
+  const totalCumulativeReturn = totalAnnualInterest * 5; // assuming 5 years
+
+  const statCards = [
+    { title: "Total Bonds", value: totalBondsOwned.toFixed(2), isLoading: isLoadingBondIds || isLoadingBondPositions || isLoadingFarmConfigs, iconColor: "green", icon: "Coffee" },
+    { title: "Annual Interest", value: `$ ${totalAnnualInterest.toFixed(2)}`, isLoading: isLoadingBondIds || isLoadingBondPositions || isLoadingFarmConfigs, iconColor: "red", icon: "DollarSign" },
+    { title: "Cumulative Return", value: `$ ${totalCumulativeReturn.toFixed(2)}`, isLoading: isLoadingBondIds || isLoadingBondPositions || isLoadingFarmConfigs, iconColor: "yellow", icon: "TrendingUp" },
+  ];
+
+  const approveTokens = async (amount) => {
+    if (!isConnected) {
+      setPurchaseError("Please connect your wallet");
+      return false;
+    }
+
+    try {
+      setIsApproving(true);
+      setPurchaseError("");
+
+      const txHash = await writeApprove({
+        address: MBT_TOKEN_ADDRESS,
+        abi: MBT_TOKEN_ABI,
+        functionName: 'approve',
+        args: [MOCHA_TREE_CONTRACT_ADDRESS, amount],
+      });
+
+      setApprovalTxHash(txHash);
+      return true;
+    } catch (err) {
+      setPurchaseError(`Approval failed: ${err.message || err.toString()}`);
+      return false;
+    } finally {
+      setIsApproving(false);
     }
   };
 
-  const handleRedeem = async (bondId: string, isEarly: boolean) => {
+  const handlePurchase = async () => {
     if (!isConnected) {
-      setActionError("Please connect your wallet");
+      setPurchaseError("Please connect your wallet");
       return;
     }
-    setActionError("");
+
+    if (!publicClient) {
+      setPurchaseError("Public client not available");
+      return;
+    }
+
+    setPurchaseError("");
+    const amount = parseFloat(mbtAmount || "0");
+
+    if (!selectedFarmId) {
+      setPurchaseError("No farm selected");
+      return;
+    }
+
+    const minInvestmentNum = Number(formatUnits(selectedFarm?.minInvestment || 0n, MBT_DECIMALS));
+    const maxInvestmentNum = Number(formatUnits(selectedFarm?.maxInvestment || 0n, MBT_DECIMALS));
+
+    if (amount < minInvestmentNum) {
+      setPurchaseError(`MBT amount must be at least ${minInvestmentNum.toFixed(2)} MBT`);
+      return;
+    }
+    if (amount > maxInvestmentNum) {
+      setPurchaseError(`MBT amount must not exceed ${maxInvestmentNum.toFixed(2)} MBT`);
+      return;
+    }
+
+    const totalCost = parseUnits(amount.toString(), MBT_DECIMALS);
+    
+    if (mbtBalance && BigInt(mbtBalance) < totalCost) {
+      setPurchaseError(`Insufficient MBT balance. You need ${formatUnits(totalCost, MBT_DECIMALS)} MBT`);
+      return;
+    }
+
     try {
-      await writeContract({
+      const txHash = await writePurchase({
         address: MOCHA_TREE_CONTRACT_ADDRESS,
         abi: MOCHA_TREE_CONTRACT_ABI,
-        functionName: isEarly ? "redeemBondEarly" : "redeemBond",
-        args: [BigInt(bondId)],
+        functionName: 'purchaseBond',
+        args: [BigInt(selectedFarmId), totalCost],
       });
+
+      const bonds = amount / BOND_MBT;
+      setPurchaseSuccessDetails({ bonds, farmName: selectedFarmName, txHash });
+      toast.success(`Successfully purchased ${bonds.toFixed(2)} bonds for ${selectedFarmName}! Transaction: ${txHash}`);
     } catch (err) {
-      setActionError(`Transaction failed: ${err.message}`);
+      setPurchaseError(`Transaction failed: ${err.message}`);
+    }
+  };
+
+  const handleApprove = async () => {
+    const amount = parseFloat(mbtAmount || "0");
+    const totalCost = parseUnits(amount.toString(), MBT_DECIMALS);
+    await approveTokens(totalCost);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    await refetchAllowance();
+  };
+
+  const handleConnectWallet = () => {
+    if (typeof window !== 'undefined' && typeof window.openfort !== 'undefined') {
+      window.openfort.connect();
+    } else {
+      console.error("Openfort SDK not loaded");
+      toast.error("Wallet connection failed. Please try again.");
+    }
+  };
+
+  const handleBuyMoreClick = (farmId, farmName, minInvestment) => {
+    if (!isConnected) {
+      handleConnectWallet();
+    } else {
+      setSelectedFarmId(farmId);
+      setSelectedFarmName(farmName);
+      setMbtAmount(Number(formatUnits(minInvestment, MBT_DECIMALS)).toFixed(2));
+      setIsPurchaseModalOpen(true);
+    }
+  };
+
+  const handleRedeemClick = (farmId, farmName, bondIds, isEarly) => {
+    setSelectedFarmId(farmId);
+    setSelectedFarmName(farmName);
+    setSelectedBondIds(bondIds);
+    setSelectedBondsCount(bondIds.length);
+    setIsEarlyRedemption(isEarly);
+    setIsRedeemModalOpen(true);
+  };
+
+  const handleRolloverClick = (farmId, farmName, bondIds) => {
+    setSelectedFarmId(farmId);
+    setSelectedFarmName(farmName);
+    setSelectedBondIds(bondIds);
+    setSelectedBondsCount(bondIds.length);
+    setIsRolloverModalOpen(true);
+  };
+
+  const handleRedeem = async (isEarly) => {
+    if (!isConnected) {
+      toast.error("Please connect your wallet");
+      return;
+    }
+
+    try {
+      for (const bondId of selectedBondIds) {
+        const txHash = await (isEarly ? writeRedeemEarly : writeRedeem)({
+          address: MOCHA_TREE_CONTRACT_ADDRESS,
+          abi: MOCHA_TREE_CONTRACT_ABI,
+          functionName: isEarly ? 'redeemBondEarly' : 'redeemBond',
+          args: [BigInt(bondId)],
+        });
+      }
+      toast.success("Bonds redeemed successfully!");
+      setRedeemSuccessDetails({ 
+        bondCount: selectedBondIds.length, 
+        isEarly,
+        penalty: isEarly ? EARLY_REDEMPTION_PENALTY * 100 : 0 
+      });
+      refetchBondIds();
+    } catch (err) {
+      toast.error(`Transaction failed: ${err.message}`);
     }
   };
 
   const handleRollover = async () => {
     if (!isConnected) {
-      setActionError("Please connect your wallet");
+      toast.error("Please connect your wallet");
       return;
     }
     if (!selectedFarmId) {
-      setActionError("Please select a farm");
+      toast.error("Please select a new farm");
       return;
     }
-    setActionError("");
     try {
-      await writeContract({
-        address: MOCHA_TREE_CONTRACT_ADDRESS,
-        abi: MOCHA_TREE_CONTRACT_ABI,
-        functionName: "rolloverBond",
-        args: [BigInt(selectedBondId), BigInt(selectedFarmId)],
+      for (const bondId of selectedBondIds) {
+        const txHash = await writeRollover({
+          address: MOCHA_TREE_CONTRACT_ADDRESS,
+          abi: MOCHA_TREE_CONTRACT_ABI,
+          functionName: 'rolloverBond',
+          args: [BigInt(bondId), BigInt(selectedFarmId)],
+        });
+      }
+      toast.success("Bonds rolled over successfully!");
+      setRolloverSuccessDetails({ 
+        bondCount: selectedBondIds.length, 
+        newFarmId: selectedFarmId,
+        newFarmName: farmConfigsData?.find(f => f.result.farmId.toString() === selectedFarmId)?.result.name || "New Farm"
       });
+      refetchBondIds();
     } catch (err) {
-      setActionError(`Transaction failed: ${err.message}`);
+      toast.error(`Transaction failed: ${err.message}`);
     }
   };
 
-  useEffect(() => {
-    if (isSuccess) {
-      setIsRedeemModalOpen(false);
-      setIsRolloverModalOpen(false);
-      setSelectedBondId("");
-      setSelectedFarmId("");
-    }
-  }, [isSuccess]);
+  const formatMbtBalance = () => {
+    if (!mbtBalance) return "0.00";
+    return Number(formatUnits(mbtBalance, MBT_DECIMALS)).toFixed(2);
+  };
 
-  useEffect(() => {
-    const savedMode = localStorage.getItem("darkMode");
-    if (savedMode !== null) {
-      setDarkMode(savedMode === "true");
-    } else {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setDarkMode(prefersDark);
-    }
-  }, []);
+  const selectedFarm = farmConfigsData?.find((f) => f.result.farmId.toString() === selectedFarmId)?.result;
+  const minInvestment = selectedFarm?.minInvestment || 0n;
+  const maxInvestment = selectedFarm?.maxInvestment || 0n;
+  const minInvestmentNum = Number(formatUnits(minInvestment, MBT_DECIMALS));
+  const maxInvestmentNum = Number(formatUnits(maxInvestment, MBT_DECIMALS));
+  const mbtAmountNum = parseFloat(mbtAmount || "0");
+  const maxMbtAllowed = maxInvestmentNum;
+  const isValidAmount = mbtAmountNum >= minInvestmentNum && mbtAmountNum <= maxMbtAllowed;
+  const totalCost = parseUnits(mbtAmountNum.toString(), MBT_DECIMALS);
+  const bondCount = mbtAmountNum / BOND_MBT;
+  const hasSufficientBalance = mbtBalance && BigInt(mbtBalance) >= totalCost;
+  const needsApproval = mbtAllowance && BigInt(mbtAllowance) < totalCost;
+  const canProceed = isValidAmount && hasSufficientBalance;
 
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
+  const handleMbtAmountChange = (value) => {
+    if (value === '' || (/^\d*\.?\d*$/.test(value) && parseFloat(value) >= 0 && parseFloat(value) <= maxMbtAllowed)) {
+      setMbtAmount(value);
+      setPurchaseError("");
+    } else if (parseFloat(value) < minInvestmentNum) {
+      setPurchaseError(`MBT amount must be at least ${minInvestmentNum.toFixed(2)} MBT`);
+    } else if (parseFloat(value) > maxInvestmentNum) {
+      setPurchaseError(`MBT amount must not exceed ${maxInvestmentNum.toFixed(2)} MBT`);
     }
-    localStorage.setItem("darkMode", darkMode.toString());
-  }, [darkMode]);
+  };
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
+  const decrementAmount = () => {
+    const newAmount = Math.max(minInvestmentNum, mbtAmountNum - 1).toFixed(2);
+    setMbtAmount(newAmount);
+    setPurchaseError("");
+  };
+
+  const incrementAmount = () => {
+    const newAmount = Math.min(maxMbtAllowed, mbtAmountNum + 1).toFixed(2);
+    setMbtAmount(newAmount);
+    setPurchaseError("");
+  };
+
+  const setMaxAmount = () => {
+    const newAmount = maxMbtAllowed.toFixed(2);
+    setMbtAmount(newAmount);
+    setPurchaseError("");
   };
 
   const truncateAddress = (address) => {
@@ -244,186 +490,113 @@ export default function Investments({ userBondIds = PLACEHOLDER_BOND_IDS }) {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
+  // Format date function
+  const formatDate = (timestamp) => {
+    return new Date(Number(timestamp) * 1000).toLocaleDateString();
+  };
+
+  // Early redemption penalty calculation
+  const calculateRedemptionAmount = (bondCount, isEarly) => {
+    const totalValue = bondCount * BOND_PRICE_USD;
+    if (isEarly) {
+      const penalty = totalValue * EARLY_REDEMPTION_PENALTY;
+      return {
+        totalValue,
+        penalty,
+        netAmount: totalValue - penalty
+      };
+    }
+    return {
+      totalValue,
+      penalty: 0,
+      netAmount: totalValue
+    };
+  };
+
+  const redemptionDetails = calculateRedemptionAmount(selectedBondsCount, isEarlyRedemption);
+
+  if (!isClient) {
+    return <div className="min-h-screen bg-[#E6E6E6] dark:bg-gray-900"></div>;
+  }
+
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-200 text-gray-900 dark:text-white">
-      <Header onConnectWallet={handleConnectWallet} />
-      <div className="pt-[100px]">
-        <div className="px-6 py-4">
-          <div className="mb-4">
+    <div className="min-h-screen bg-[#E6E6E6] dark:bg-gray-900 transition-colors duration-200 text-gray-900 dark:text-white">
+      <Toaster richColors position="bottom-right" />
+      <Header />
+      <div className="pt-[72px]">
+        <div className="mx-auto py-6 px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 max-w-[1800px]">
+          <div className="mb-6">
             <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">INVESTMENTS</div>
-            <h1 className="text-3xl font-bold dark:text-white">Your Mocha Bond Investments</h1>
+            <h1 className="text-3xl font-bold dark:text-white">Your Investments</h1>
           </div>
-          <Card className="bg-white dark:bg-gray-800 border-none mb-8">
-            <CardHeader>
-              <CardTitle className="dark:text-white">Chat Feature</CardTitle>
-              <CardDescription className="dark:text-gray-400">Stay tuned for updates!</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-600 dark:text-gray-300">Chat coming soon</p>
-            </CardContent>
-          </Card>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card className="bg-white dark:bg-gray-800 border-none">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center">
-                    <BarChart className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {statCards.map((card, index) => (
+              <Card key={index} className="bg-white dark:bg-gray-800 border-none">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-[#7A5540]/20 flex items-center justify-center">
+                      {card.icon === "Coffee" && <Coffee className="h-6 w-6 text-[#7A5540]" />}
+                      {card.icon === "DollarSign" && <BarChart className="h-6 w-6 text-red-500" />}
+                      {card.icon === "TrendingUp" && <ArrowUp className="h-6 w-6 text-yellow-500" />}
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{card.title}</div>
+                      <div className="text-2xl font-bold dark:text-white">{card.value}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Total Bonds</div>
-                    <div className="text-2xl font-bold dark:text-white">{totalBonds}</div>
-                    <div className="text-sm text-amber-600 dark:text-amber-400">{(totalBonds * 100).toFixed(2)} USD</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-white dark:bg-gray-800 border-none">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                    <Calendar className="h-6 w-6 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Total Value</div>
-                    <div className="text-2xl font-bold dark:text-white">{totalValue.toFixed(2)} ETH</div>
-                    <div className="text-sm text-green-600 dark:text-green-400">{(totalValue * ETH_PRICE_USD).toFixed(2)} USD</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="bg-white dark:bg-gray-800 border-none">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                    <Clock className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Matured Bonds</div>
-                    <div className="text-2xl font-bold dark:text-white">{maturedBonds.length}</div>
-                    <div className="text-sm text-blue-600 dark:text-blue-400">{maturedBonds.reduce((sum, { data }) => sum + Number(data.mbtAmount), 0)} MBT</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-          <Card className="bg-white dark:bg-gray-800 border-none mb-8">
-            <CardHeader>
-              <CardTitle className="dark:text-white">Investment Performance</CardTitle>
-              <CardDescription className="dark:text-gray-400">Total yield by farm</CardDescription>
-            </CardHeader>
-            {/* <CardContent className="h-80">
-              {isLoadingYields ? (
-                <div>Loading yield data...</div>
-              ) : yieldsError ? (
-                <div>Error loading yield data</div>
-              ) : monthlyReturns.length > 0 ? (
-                ```chartjs
-                {
-                  "type": "bar",
-                  "data": {
-                    "labels": ${JSON.stringify(monthlyReturns.map((item) => item.farmName))},
-                    "datasets": [
-                      {
-                        "label": "Total Yield (ETH)",
-                        "data": ${JSON.stringify(monthlyReturns.map((item) => item.totalYield))},
-                        "backgroundColor": "rgba(245, 158, 11, 0.6)",
-                        "borderColor": "rgba(245, 158, 11, 1)",
-                        "borderWidth": 1
-                      }
-                    ]
-                  },
-                  "options": {
-                    "scales": {
-                      "y": {
-                        "beginAtZero": true,
-                        "title": { "display": true, "text": "Yield (ETH)", "color": "#ffffff" },
-                        "ticks": { "color": "#ffffff" }
-                      },
-                      "x": {
-                        "title": { "display": true, "text": "Farm", "color": "#ffffff" },
-                        "ticks": { "color": "#ffffff" }
-                      }
-                    },
-                    "plugins": {
-                      "legend": { "labels": { "color": "#ffffff" } }
-                    }
-                  }
-                }
-                ```
-              ) : (
-                <div>No yield data available</div>
-              )}
-            </CardContent> */}
-          </Card>
-          <Tabs defaultValue="active" value={investmentTab} onValueChange={setInvestmentTab}>
+
+          <Tabs value={investmentTab} onValueChange={setInvestmentTab}>
             <TabsList className="bg-gray-100 dark:bg-gray-800 border-none mb-6">
-              <TabsTrigger value="active">Active Investments</TabsTrigger>
-              <TabsTrigger value="matured">Matured Investments</TabsTrigger>
-              <TabsTrigger value="redeemed">Redemption History</TabsTrigger>
+              <TabsTrigger value="active">Active</TabsTrigger>
+              <TabsTrigger value="matured">Matured</TabsTrigger>
+              <TabsTrigger value="redeemed">Redeemed</TabsTrigger>
             </TabsList>
             <TabsContent value="active">
               <Card className="bg-white dark:bg-gray-800 border-none">
                 <CardHeader>
                   <CardTitle className="dark:text-white">Active Investments</CardTitle>
-                  <CardDescription className="dark:text-gray-400">Your current bond investments</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Table>
                     <TableHeader>
-                      <TableRow className="border-b dark:border-gray-800">
-                        <TableHead className="text-gray-500 dark:text-gray-400">Farm</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Bond ID</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Trees</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Purchase Date</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Value (ETH)</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Maturity Date</TableHead>
-                        <TableHead className="text-right text-gray-500 dark:text-gray-400">Action</TableHead>
+                      <TableRow>
+                        <TableHead>Farm</TableHead>
+                        <TableHead className="text-right">Bonds Owned</TableHead>
+                        <TableHead className="text-right">Annual Interest</TableHead>
+                        <TableHead className="text-right">Maturity Date</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {isLoadingBondPositions || isLoadingFarmConfigs ? (
-                        <TableRow>
-                          <TableCell colSpan={7} className="text-center py-4 text-gray-500 dark:text-gray-400">
-                            Loading investments...
+                      {activeFarms.map((farm) => (
+                        <TableRow key={farm.farmId}>
+                          <TableCell>{farm.name} <span className="text-xs text-gray-500 dark:text-gray-400">Owner: {truncateAddress(farm.owner)}</span></TableCell>
+                          <TableCell className="text-right">{farm.totalBonds.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">${farm.annualInterest.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{formatDate(farm.maturityTimestamp)}</TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Button
+                              size="sm"
+                              className="bg-[#7A5540] hover:bg-[#6A4A36] text-white"
+                              onClick={() => handleBuyMoreClick(farm.farmId, farm.name, farm.minInvestment)}
+                            >
+                              Buy More
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-[#7A5540] hover:bg-[#6A4A36] text-white"
+                              onClick={() => handleRedeemClick(farm.farmId, farm.name, farm.bondIds, true)}
+                            >
+                              Redeem Early
+                            </Button>
                           </TableCell>
                         </TableRow>
-                      ) : bondPositionsError || farmConfigsError ? (
-                        <TableRow>
-                          <TableCell colSpan={7} className="text-center py-4 text-red-600 dark:text-red-400">
-                            Error loading investments
-                          </TableCell>
-                        </TableRow>
-                      ) : activeBonds.length > 0 ? (
-                        activeBonds.map(({ bondId, data, farmData, error }) => (
-                          <TableRow key={bondId.toString()} className="border-b dark:border-gray-800">
-                            <TableCell className="font-medium dark:text-white">{error || !farmData ? "N/A" : farmData.name}</TableCell>
-                            <TableCell className="dark:text-gray-300">{bondId.toString()}</TableCell>
-                            <TableCell className="dark:text-gray-300">{error || !data ? "N/A" : data.mbtAmount.toString()}</TableCell>
-                            <TableCell className="dark:text-gray-300">{error || !data ? "N/A" : new Date(Number(data.purchaseDate) * 1000).toLocaleDateString()}</TableCell>
-                            <TableCell className="dark:text-gray-300">{error || !data ? "N/A" : (Number(data.mbtAmount) * 0.1).toFixed(2)}</TableCell>
-                            <TableCell className="dark:text-gray-300">{error || !farmData ? "N/A" : new Date(Number(farmData.maturityTimestamp) * 1000).toLocaleDateString()}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                className="bg-amber-600 hover:bg-amber-700 text-white border-none"
-                                onClick={() => {
-                                  setSelectedBondId(bondId.toString());
-                                  setIsRedeemModalOpen(true);
-                                }}
-                                disabled={isLoading || error || !isConnected}
-                              >
-                                {isConnected ? "Redeem Early" : "Connect Wallet"}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={7} className="text-center py-4 text-gray-500 dark:text-gray-400">
-                            No active investments
-                          </TableCell>
-                        </TableRow>
-                      )}
+                      ))}
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -433,76 +606,43 @@ export default function Investments({ userBondIds = PLACEHOLDER_BOND_IDS }) {
               <Card className="bg-white dark:bg-gray-800 border-none">
                 <CardHeader>
                   <CardTitle className="dark:text-white">Matured Investments</CardTitle>
-                  <CardDescription className="dark:text-gray-400">Bonds ready for redemption or rollover</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Table>
                     <TableHeader>
-                      <TableRow className="border-b dark:border-gray-800">
-                        <TableHead className="text-gray-500 dark:text-gray-400">Farm</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Bond ID</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Trees</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Purchase Date</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Value (ETH)</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Maturity Date</TableHead>
-                        <TableHead className="text-right text-gray-500 dark:text-gray-400">Action</TableHead>
+                      <TableRow>
+                        <TableHead>Farm</TableHead>
+                        <TableHead className="text-right">Bonds Owned</TableHead>
+                        <TableHead className="text-right">Annual Interest</TableHead>
+                        <TableHead className="text-right">Maturity Date</TableHead>
+                        <TableHead className="text-right">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {isLoadingBondPositions || isLoadingFarmConfigs ? (
-                        <TableRow>
-                          <TableCell colSpan={7} className="text-center py-4 text-gray-500 dark:text-gray-400">
-                            Loading investments...
+                      {maturedFarms.map((farm) => (
+                        <TableRow key={farm.farmId}>
+                          <TableCell>{farm.name} <span className="text-xs text-gray-500 dark:text-gray-400">Owner: {truncateAddress(farm.owner)}</span></TableCell>
+                          <TableCell className="text-right">{farm.totalBonds.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">${farm.annualInterest.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{formatDate(farm.maturityTimestamp)}</TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <Button
+                              size="sm"
+                              className="bg-[#7A5540] hover:bg-[#6A4A36] text-white"
+                              onClick={() => handleRedeemClick(farm.farmId, farm.name, farm.bondIds, false)}
+                            >
+                              Redeem
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-[#7A5540] hover:bg-[#6A4A36] text-white"
+                              onClick={() => handleRolloverClick(farm.farmId, farm.name, farm.bondIds)}
+                            >
+                              Rollover
+                            </Button>
                           </TableCell>
                         </TableRow>
-                      ) : bondPositionsError || farmConfigsError ? (
-                        <TableRow>
-                          <TableCell colSpan={7} className="text-center py-4 text-red-600 dark:text-red-400">
-                            Error loading investments
-                          </TableCell>
-                        </TableRow>
-                      ) : maturedBonds.length > 0 ? (
-                        maturedBonds.map(({ bondId, data, farmData, error }) => (
-                          <TableRow key={bondId.toString()} className="border-b dark:border-gray-800">
-                            <TableCell className="font-medium dark:text-white">{error || !farmData ? "N/A" : farmData.name}</TableCell>
-                            <TableCell className="dark:text-gray-300">{bondId.toString()}</TableCell>
-                            <TableCell className="dark:text-gray-300">{error || !data ? "N/A" : data.mbtAmount.toString()}</TableCell>
-                            <TableCell className="dark:text-gray-300">{error || !data ? "N/A" : new Date(Number(data.purchaseDate) * 1000).toLocaleDateString()}</TableCell>
-                            <TableCell className="dark:text-gray-300">{error || !data ? "N/A" : (Number(data.mbtAmount) * 0.1).toFixed(2)}</TableCell>
-                            <TableCell className="dark:text-gray-300">{error || !farmData ? "N/A" : new Date(Number(farmData.maturityTimestamp) * 1000).toLocaleDateString()}</TableCell>
-                            <TableCell className="text-right space-x-2">
-                              <Button
-                                size="sm"
-                                className="bg-amber-600 hover:bg-amber-700 text-white border-none"
-                                onClick={() => {
-                                  setSelectedBondId(bondId.toString());
-                                  setIsRedeemModalOpen(true);
-                                }}
-                                disabled={isLoading || error || !isConnected}
-                              >
-                                {isConnected ? "Redeem" : "Connect Wallet"}
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="bg-blue-600 hover:bg-blue-700 text-white border-none"
-                                onClick={() => {
-                                  setSelectedBondId(bondId.toString());
-                                  setIsRolloverModalOpen(true);
-                                }}
-                                disabled={isLoading || error || !isConnected}
-                              >
-                                {isConnected ? "Rollover" : "Connect Wallet"}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={7} className="text-center py-4 text-gray-500 dark:text-gray-400">
-                            No matured investments
-                          </TableCell>
-                        </TableRow>
-                      )}
+                      ))}
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -512,246 +652,439 @@ export default function Investments({ userBondIds = PLACEHOLDER_BOND_IDS }) {
               <Card className="bg-white dark:bg-gray-800 border-none">
                 <CardHeader>
                   <CardTitle className="dark:text-white">Redemption History</CardTitle>
-                  <CardDescription className="dark:text-gray-400">Record of your redeemed bonds</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Table>
                     <TableHeader>
-                      <TableRow className="border-b dark:border-gray-800">
-                        <TableHead className="text-gray-500 dark:text-gray-400">Farm</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Bond ID</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Trees</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Purchase Date</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Redemption Date</TableHead>
-                        <TableHead className="text-gray-500 dark:text-gray-400">Value (ETH)</TableHead>
+                      <TableRow>
+                        <TableHead>Farm</TableHead>
+                        <TableHead>Bond ID</TableHead>
+                        <TableHead>Bonds</TableHead>
+                        <TableHead>Purchase Date</TableHead>
+                        <TableHead>Value (USD)</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {isLoadingBondPositions || isLoadingFarmConfigs ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-4 text-gray-500 dark:text-gray-400">
-                            Loading redemption history...
-                          </TableCell>
+                      {redeemedBonds.map(({ bondId, data, farmData }) => (
+                        <TableRow key={bondId.toString()}>
+                          <TableCell>{farmData?.name || "N/A"}</TableCell>
+                          <TableCell>{bondId.toString()}</TableCell>
+                          <TableCell>{(Number(formatUnits(data.depositAmount, MBT_DECIMALS)) / BOND_MBT).toFixed(2)}</TableCell>
+                          <TableCell>{formatDate(data.depositTimestamp)}</TableCell>
+                          <TableCell>{(Number(formatUnits(data.depositAmount, MBT_DECIMALS)) * MBT_PRICE_USD).toFixed(2)}</TableCell>
                         </TableRow>
-                      ) : bondPositionsError || farmConfigsError ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-4 text-red-600 dark:text-red-400">
-                            Error loading redemption history
-                          </TableCell>
-                        </TableRow>
-                      ) : redeemedBonds.length > 0 ? (
-                        redeemedBonds.map(({ bondId, data, farmData, error }) => (
-                          <TableRow key={bondId.toString()} className="border-b dark:border-gray-800">
-                            <TableCell className="font-medium dark:text-white">{error || !farmData ? "N/A" : farmData.name}</TableCell>
-                            <TableCell className="dark:text-gray-300">{bondId.toString()}</TableCell>
-                            <TableCell className="dark:text-gray-300">{error || !data ? "N/A" : data.mbtAmount.toString()}</TableCell>
-                            <TableCell className="dark:text-gray-300">{error || !data ? "N/A" : new Date(Number(data.purchaseDate) * 1000).toLocaleDateString()}</TableCell>
-                            <TableCell className="dark:text-gray-300">{error || !data ? "N/A" : "N/A"}</TableCell>
-                            <TableCell className="dark:text-gray-300">{error || !data ? "N/A" : (Number(data.mbtAmount) * 0.1).toFixed(2)}</TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-4 text-gray-500 dark:text-gray-400">
-                            No redemption history available
-                          </TableCell>
-                        </TableRow>
-                      )}
+                      ))}
                     </TableBody>
                   </Table>
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
-          <Dialog open={isRedeemModalOpen} onOpenChange={setIsRedeemModalOpen}>
-            <DialogContent className="bg-gray-50 dark:bg-gray-800 border-none max-w-[500px] p-6">
+
+          {/* Purchase Modal */}
+          <Dialog open={isPurchaseModalOpen} onOpenChange={setIsPurchaseModalOpen}>
+            <DialogContent className="bg-gray-50 dark:bg-gray-800 border-none p-6 text-gray-500 sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold dark:text-white">
-                  {maturedBonds.some(({ bondId }) => bondId.toString() === selectedBondId) ? "Redeem Bond" : "Redeem Bond Early"}
+                  Purchase Bonds for {selectedFarmName || "Selected Farm"}
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 {!isConnected ? (
                   <div className="text-center">
                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                      Please connect your wallet to redeem bonds.
+                      Please connect your wallet to purchase bonds.
                     </p>
                     <Button
-                      className="bg-amber-600 hover:bg-amber-700 text-white border-none"
+                      className="bg-[#7A5540] hover:bg-[#6A4A36] text-white border-none"
                       onClick={handleConnectWallet}
                     >
                       Connect Wallet
                     </Button>
                   </div>
+                ) : purchaseSuccessDetails ? (
+                  <div className="text-center py-8">
+                    <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                    <h3 className="text-2xl font-bold mb-2 dark:text-white">Purchase Successful!</h3>
+                    <p className="text-gray-600 dark:text-gray-300 mb-4">
+                      You have purchased {purchaseSuccessDetails.bonds.toFixed(2)} bonds for {purchaseSuccessDetails.farmName}.
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Transaction Hash: {truncateAddress(purchaseSuccessDetails.txHash)}
+                    </p>
+                  </div>
                 ) : (
                   <>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Bond ID</p>
-                      <p className="text-base dark:text-white">{selectedBondId}</p>
+                    <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Your MBT Balance:</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">{formatMbtBalance()} MBT</span>
+                      </div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Min Investment:</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-200">{minInvestmentNum.toFixed(2)} MBT</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Max Investment:</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-200">{maxInvestmentNum.toFixed(2)} MBT</span>
+                      </div>
                     </div>
+                    
                     <div>
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Redemption Amount</p>
-                      <p className="text-base dark:text-white">
-                        {(() => {
-                          const bond = bonds.find(({ bondId }) => bondId.toString() === selectedBondId);
-                          if (!bond || !bond.data) return "N/A";
-                          const amount = Number(bond.data.mbtAmount) * 0.1;
-                          const isEarly = !maturedBonds.some(({ bondId }) => bondId.toString() === selectedBondId);
-                          return isEarly ? `${(amount * (1 - EARLY_REDEMPTION_PENALTY)).toFixed(2)} ETH (20% penalty)` : `${amount.toFixed(2)} ETH`;
-                        })()}
+                      <label className="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-1">
+                        MBT Amount ({minInvestmentNum.toFixed(2)}–{maxInvestmentNum.toFixed(2)} MBT)
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          onClick={decrementAmount} 
+                          disabled={mbtAmountNum <= minInvestmentNum}
+                          className="bg-white dark:bg-gray-800 border-none"
+                        >
+                          -
+                        </Button>
+                        <Input
+                          type="text"
+                          value={mbtAmount}
+                          onChange={(e) => handleMbtAmountChange(e.target.value)}
+                          className="bg-white dark:bg-gray-800 border-none text-center"
+                          placeholder={minInvestmentNum.toFixed(2)}
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="icon"
+                          onClick={incrementAmount} 
+                          disabled={mbtAmountNum >= maxMbtAllowed}
+                          className="bg-white dark:bg-gray-800 border-none"
+                        >
+                          +
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          onClick={setMaxAmount}
+                          disabled={maxMbtAllowed <= minInvestmentNum}
+                          className="text-sm text-[#7A5540] dark:text-[#A57A5F]"
+                        >
+                          Max
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Bond Cost:</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-200">{BOND_MBT} MBT per bond</span>
+                      </div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total MBT Cost:</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">
+                          {mbtAmountNum.toFixed(2)} MBT
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Bonds to Purchase:</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">
+                          {bondCount.toFixed(2)} bonds
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">USD Equivalent:</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-200">
+                          ${(mbtAmountNum * MBT_PRICE_USD).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {!hasSufficientBalance && mbtAmount && (
+                      <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800 flex items-center">
+                        <AlertTriangle className="w-5 h-5 mr-2 text-red-600 dark:text-red-400" />
+                        <p className="text-red-600 dark:text-red-400 text-sm">Insufficient MBT balance</p>
+                      </div>
+                    )}
+
+                    {needsApproval && (
+                      <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                        <div className="flex items-center">
+                          <AlertTriangle className="w-5 h-5 mr-2 text-yellow-800 dark:text-yellow-200" />
+                          <div className="text-yellow-800 dark:text-yellow-200 text-sm">
+                            Approval required: Approve {mbtAmountNum.toFixed(2)} MBT for spending
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {purchaseError && (
+                      <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800">
+                        <p className="text-red-600 dark:text-red-400 text-sm">{purchaseError}</p>
+                      </div>
+                    )}
+
+                    {isApproving && (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <p className="text-blue-600 dark:text-blue-400 text-sm">Approving MBT tokens...</p>
+                      </div>
+                    )}
+
+                    {isApprovePending && (
+                      <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                        <p className="text-yellow-600 dark:text-yellow-400 text-sm">Approval transaction pending...</p>
+                      </div>
+                    )}
+
+                    {isPurchasePending && (
+                      <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                        <p className="text-yellow-600 dark:text-yellow-400 text-sm">Purchase transaction pending...</p>
+                      </div>
+                    )}
+
+                    <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+                      <p className="mb-1">
+                        <strong>Important:</strong> By proceeding, you agree to:
+                      </p>
+                      <ul className="list-disc list-inside space-y-1">
+                        <li>Complete KYC/AML verification if required</li>
+                        <li>Receive digital bond tokens upon successful payment</li>
+                        <li>Terms and conditions of the bond purchase agreement</li>
+                      </ul>
+                      <p className="mt-2">
+                        Note: 1 bond is equivalent to $100 and requires {BOND_MBT} MBT (since 1 MBT = 1kg roasted coffee ≈ $25). Fractional ownership is supported, with minimum $1 investment (0.04 MBT for 0.01 bond or 1% of a full bond). This enables micro-investing in agricultural assets.
                       </p>
                     </div>
-                    {actionError && (
-                      <p className="text-red-600 dark:text-red-400 text-sm">{actionError}</p>
-                    )}
-                    {writeError && (
-                      <p className="text-red-600 dark:text-red-400 text-sm">Error: {writeError.message}</p>
-                    )}
-                    {isPending && (
-                      <p className="text-yellow-600 dark:text-yellow-400 text-sm">Transaction pending...</p>
-                    )}
-                    {isSuccess && (
-                      <p className="text-green-600 dark:text-green-400 text-sm">Redemption successful!</p>
-                    )}
                   </>
                 )}
               </div>
+              
               {isConnected && (
-                <DialogFooter>
+                <DialogFooter className="mt-6 flex justify-end space-x-2">
                   <Button
                     variant="outline"
                     className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-300 border-none"
-                    onClick={() => setIsRedeemModalOpen(false)}
+                    onClick={() => {
+                      setIsPurchaseModalOpen(false);
+                    }}
+                    disabled={isApprovePending || isPurchasePending || isApproving}
                   >
-                    Cancel
+                    {purchaseSuccessDetails ? "Close" : "Cancel"}
                   </Button>
-                  <Button
-                    className="bg-amber-600 hover:bg-amber-700 text-white border-none"
-                    onClick={() => handleRedeem(selectedBondId, !maturedBonds.some(({ bondId }) => bondId.toString() === selectedBondId))}
-                    disabled={isPending || !selectedBondId}
-                  >
-                    {maturedBonds.some(({ bondId }) => bondId.toString() === selectedBondId) ? "Redeem" : "Redeem Early"}
-                  </Button>
+                  {!purchaseSuccessDetails && (
+                    <>
+                      {needsApproval ? (
+                        <Button
+                          className="bg-[#7A5540] hover:bg-[#6A4A36] text-white border-none"
+                          onClick={handleApprove}
+                          disabled={!canProceed || isApproving || isApprovePending || isPurchasePending}
+                        >
+                          {isApproving || isApprovePending ? "Approving..." : `Approve ${mbtAmountNum.toFixed(2)} MBT`}
+                        </Button>
+                      ) : (
+                        <Button
+                          className="bg-[#7A5540] hover:bg-[#6A4A36] text-white border-none"
+                          onClick={handlePurchase}
+                          disabled={!canProceed || isApproving || isApprovePending || isPurchasePending}
+                        >
+                          {isPurchasePending ? "Purchasing..." : `Purchase ${bondCount.toFixed(2)} Bonds`}
+                        </Button>
+                      )}
+                    </>
+                  )}
                 </DialogFooter>
               )}
             </DialogContent>
           </Dialog>
-          <Dialog open={isRolloverModalOpen} onOpenChange={setIsRolloverModalOpen}>
-            <DialogContent className="bg-gray-50 dark:bg-gray-800 border-none max-w-[500px] p-6">
+
+          {/* Redeem Modal */}
+          <Dialog open={isRedeemModalOpen} onOpenChange={setIsRedeemModalOpen}>
+            <DialogContent className="bg-gray-50 dark:bg-gray-800 border-none p-6 text-gray-500 sm:max-w-md">
               <DialogHeader>
-                <DialogTitle className="text-xl font-bold dark:text-white">Rollover Bond</DialogTitle>
+                <DialogTitle className="text-xl font-bold dark:text-white">
+                  {isEarlyRedemption ? "Early Redemption" : "Redeem Bonds"}
+                </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                {!isConnected ? (
-                  <div className="text-center">
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                      Please connect your wallet to rollover bonds.
+                {redeemSuccessDetails ? (
+                  <div className="text-center py-8">
+                    <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                    <h3 className="text-2xl font-bold mb-2 dark:text-white">Redemption Successful!</h3>
+                    <p className="text-gray-600 dark:text-gray-300 mb-4">
+                      You have successfully redeemed {redeemSuccessDetails.bondCount} bonds.
+                      {redeemSuccessDetails.isEarly && (
+                        <span> An early redemption penalty of {redeemSuccessDetails.penalty}% was applied.</span>
+                      )}
                     </p>
-                    <Button
-                      className="bg-amber-600 hover:bg-amber-700 text-white border-none"
-                      onClick={handleConnectWallet}
-                    >
-                      Connect Wallet
-                    </Button>
                   </div>
                 ) : (
                   <>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Bond ID</p>
-                      <p className="text-base dark:text-white">{selectedBondId}</p>
+                    <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Farm:</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">{selectedFarmName}</span>
+                      </div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Bonds to Redeem:</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">{selectedBondsCount}</span>
+                      </div>
+                      {isEarlyRedemption && (
+                        <>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Early Redemption Penalty:</span>
+                            <span className="text-sm text-red-600 dark:text-red-400">{EARLY_REDEMPTION_PENALTY * 100}%</span>
+                          </div>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Value:</span>
+                            <span className="text-sm text-gray-700 dark:text-gray-200">${redemptionDetails.totalValue.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Penalty Amount:</span>
+                            <span className="text-sm text-red-600 dark:text-red-400">-${redemptionDetails.penalty.toFixed(2)}</span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Net Amount:</span>
+                        <span className="text-sm font-bold text-green-600 dark:text-green-400">${redemptionDetails.netAmount.toFixed(2)}</span>
+                      </div>
                     </div>
+                    
+                    {isEarlyRedemption && (
+                      <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                        <div className="flex items-center">
+                          <AlertTriangle className="w-5 h-5 mr-2 text-yellow-800 dark:text-yellow-200" />
+                          <div className="text-yellow-800 dark:text-yellow-200 text-sm">
+                            Early redemption incurs a {EARLY_REDEMPTION_PENALTY * 100}% penalty. Consider waiting until maturity to avoid this fee.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+                      <p>
+                        <strong>Note:</strong> {isEarlyRedemption 
+                          ? "Early redemption will return your principal minus the penalty. The funds will be returned to your wallet as MBT tokens."
+                          : "Matured bonds can be redeemed for their full value. The funds will be returned to your wallet as MBT tokens."}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+              
+              {isConnected && (
+                <DialogFooter className="mt-6 flex justify-end space-x-2">
+                  <Button
+                    variant="outline"
+                    className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-300 border-none"
+                    onClick={() => {
+                      setIsRedeemModalOpen(false);
+                    }}
+                    disabled={isRedeemPending || isRedeemEarlyPending}
+                  >
+                    {redeemSuccessDetails ? "Close" : "Cancel"}
+                  </Button>
+                  {!redeemSuccessDetails && (
+                    <Button
+                      className="bg-[#7A5540] hover:bg-[#6A4A36] text-white border-none"
+                      onClick={() => handleRedeem(isEarlyRedemption)}
+                      disabled={isRedeemPending || isRedeemEarlyPending}
+                    >
+                      {(isRedeemPending || isRedeemEarlyPending) 
+                        ? "Processing..." 
+                        : `Redeem ${selectedBondsCount} Bond${selectedBondsCount !== 1 ? 's' : ''}`}
+                    </Button>
+                  )}
+                </DialogFooter>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Rollover Modal */}
+          <Dialog open={isRolloverModalOpen} onOpenChange={setIsRolloverModalOpen}>
+            <DialogContent className="bg-gray-50 dark:bg-gray-800 border-none p-6 text-gray-500 sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold dark:text-white">
+                  Rollover Bonds
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {rolloverSuccessDetails ? (
+                  <div className="text-center py-8">
+                    <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                    <h3 className="text-2xl font-bold mb-2 dark:text-white">Rollover Successful!</h3>
+                    <p className="text-gray-600 dark:text-gray-300 mb-4">
+                      You have successfully rolled over {rolloverSuccessDetails.bondCount} bonds to {rolloverSuccessDetails.newFarmName}.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Current Farm:</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">{selectedFarmName}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Bonds to Rollover:</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">{selectedBondsCount}</span>
+                      </div>
+                    </div>
+                    
                     <div>
-                      <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Select New Farm</label>
-                      <Select value={selectedFarmId} onValueChange={setSelectedFarmId}>
+                      <label className="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-1">
+                        Select New Farm
+                      </label>
+                      <Select onValueChange={setSelectedFarmId} value={selectedFarmId}>
                         <SelectTrigger className="bg-white dark:bg-gray-800 border-none">
                           <SelectValue placeholder="Select a farm" />
                         </SelectTrigger>
-                        <SelectContent className="bg-white dark:bg-gray-800 border-none">
-                          {activeFarmIds && activeFarmIds.length > 0 ? (
-                            activeFarmIds.map((farmId) => {
-                              const farm = farmConfigsData?.find((f, i) => f.status === "success" && farmIds[i] === farmId);
-                              return (
-                                <SelectItem key={farmId.toString()} value={farmId.toString()}>
-                                  {farm?.status === "success" ? farm.result.name : `Farm ${farmId}`}
-                                </SelectItem>
-                              );
-                            })
-                          ) : (
-                            <SelectItem value="none">No active farms</SelectItem>
-                          )}
+                        <SelectContent>
+                          {activeFarmIds && activeFarmIds.map((farmId) => {
+                            const farmConfig = farmConfigsData?.find(f => 
+                              f.status === "success" && f.result.farmId.toString() === farmId.toString()
+                            )?.result;
+                            return (
+                              <SelectItem key={farmId.toString()} value={farmId.toString()}>
+                                {farmConfig?.name || `Farm ${farmId}`}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>
-                    {actionError && (
-                      <p className="text-red-600 dark:text-red-400 text-sm">{actionError}</p>
-                    )}
-                    {writeError && (
-                      <p className="text-red-600 dark:text-red-400 text-sm">Error: {writeError.message}</p>
-                    )}
-                    {isPending && (
-                      <p className="text-yellow-600 dark:text-yellow-400 text-sm">Transaction pending...</p>
-                    )}
-                    {isSuccess && (
-                      <p className="text-green-600 dark:text-green-400 text-sm">Rollover successful!</p>
-                    )}
+
+                    <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+                      <p>
+                        <strong>Note:</strong> Rolling over moves your matured bonds to a new farm. The new farm's terms and conditions will apply, including its target APY and maturity period.
+                      </p>
+                    </div>
                   </>
                 )}
               </div>
+              
               {isConnected && (
-                <DialogFooter>
+                <DialogFooter className="mt-6 flex justify-end space-x-2">
                   <Button
                     variant="outline"
                     className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-300 border-none"
-                    onClick={() => setIsRolloverModalOpen(false)}
+                    onClick={() => {
+                      setIsRolloverModalOpen(false);
+                    }}
+                    disabled={isRolloverPending}
                   >
-                    Cancel
+                    {rolloverSuccessDetails ? "Close" : "Cancel"}
                   </Button>
-                  <Button
-                    className="bg-amber-600 hover:bg-amber-700 text-white border-none"
-                    onClick={handleRollover}
-                    disabled={isPending || !selectedBondId || !selectedFarmId}
-                  >
-                    Rollover
-                  </Button>
+                  {!rolloverSuccessDetails && (
+                    <Button
+                      className="bg-[#7A5540] hover:bg-[#6A4A36] text-white border-none"
+                      onClick={handleRollover}
+                      disabled={isRolloverPending || !selectedFarmId}
+                    >
+                      {isRolloverPending 
+                        ? "Processing..." 
+                        : `Rollover ${selectedBondsCount} Bond${selectedBondsCount !== 1 ? 's' : ''}`}
+                    </Button>
+                  )}
                 </DialogFooter>
               )}
             </DialogContent>
           </Dialog>
-          <Card className="bg-white dark:bg-gray-800 border-none mt-8">
-            <CardHeader>
-              <CardTitle className="dark:text-white">About Mocha Bond Investments</CardTitle>
-              <CardDescription className="dark:text-gray-400">
-                Learn more about how Mocha Asset-Backed Bonds work
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 text-gray-600 dark:text-gray-300">
-                <p>
-                  Mocha Asset-Backed Bonds (MABB) represent investments in coffee farms in Kenya. Each bond is backed by coffee trees, and investors can redeem or rollover bonds upon maturity.
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <h4 className="font-medium dark:text-white">Bond Mechanics</h4>
-                    <ul className="list-disc list-inside space-y-1 text-sm">
-                      <li>1 MABB = 1 coffee tree = 0.1 ETH ($100)</li>
-                      <li>Bonds mature based on farm harvest cycles</li>
-                      <li>Matured bonds can be redeemed for MBT tokens</li>
-                      <li>Early redemption incurs a 20% penalty</li>
-                    </ul>
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="font-medium dark:text-white">Rollover & Redemption</h4>
-                    <ul className="list-disc list-inside space-y-1 text-sm">
-                      <li>Rollover bonds to new farms to continue earning yields</li>
-                      <li>Redeemed MBT tokens are sent to your wallet</li>
-                      <li>No gas fees for redemption (covered by platform)</li>
-                      <li>KYC/AML required for redemptions</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
