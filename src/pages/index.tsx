@@ -4,19 +4,20 @@ import { useState, useEffect } from "react"
 import { Search, Filter, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Info, MoreHorizontal, RefreshCw, Coffee, AlertTriangle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { useAccount, useReadContract, useReadContracts, useWriteContract, useBalance, usePublicClient } from "wagmi"
-import { parseEther, formatEther, parseUnits, formatUnits } from "viem"
+import { useAccount, useReadContract, useReadContracts, useWriteContract, useBalance, usePublicClient, useWatchContractEvent } from "wagmi"
+import { parseEther, formatEther, parseUnits, formatUnits, parseAbiItem} from "viem"
 import { scrollSepolia } from "viem/chains"
 import Header from "@/components/@shared-components/header"
 import StatCard from "@/components/@shared-components/statCard"
 import { TREE_CONTRACT_ABI, TREE_CONTRACT_ADDRESS, MBT_ADDRESS } from "@/config/constants"
 import Link from "next/link"
 import { Toaster, toast } from "sonner"
+import { FarmsTable } from "@/components/@shared-components/FarmsTable"
 
-const MOCHA_TREE_CONTRACT_ADDRESS =  TREE_CONTRACT_ADDRESS;
+const MOCHA_TREE_CONTRACT_ADDRESS = TREE_CONTRACT_ADDRESS;
 const MOCHA_TREE_CONTRACT_ABI = TREE_CONTRACT_ABI;
 const MBT_TOKEN_ADDRESS = MBT_ADDRESS;
 const BOND_PRICE_USD = 100;
@@ -87,6 +88,14 @@ export default function Dashboard() {
   const [isApproving, setIsApproving] = useState(false)
   const [approvalTxHash, setApprovalTxHash] = useState("")
   const [purchaseSuccessDetails, setPurchaseSuccessDetails] = useState<{ bonds: number; farmName: string; txHash: string } | null>(null)
+  const [transactions, setTransactions] = useState([])
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(5)
+
+  const [previousTotalBonds, setPreviousTotalBonds] = useState(0);
+  const [previousAnnualInterest, setPreviousAnnualInterest] = useState(0);
+  const [previousCumulativeReturn, setPreviousCumulativeReturn] = useState(0);
 
   // Fetch contract data
   const { data: activeFarmIds, isLoading: isLoadingActiveFarmIds, error: activeFarmIdsError } = useReadContract({
@@ -160,34 +169,15 @@ export default function Dashboard() {
   const annualInterest = totalBondsOwned * 10; // 10% of $100 per bond
   const cumulativeReturn = annualInterest * 5; // 5-year term
 
-  // Define stat cards data
-  const statCards = [
-    {
-      title: "Total Bonds",
-      value: `${formatEther(totalBondsOwned)}`,
-      isLoading: isLoadingBalances || isLoadingFarmConfigs,
-      iconColor: "green",
-      icon: "Coffee",
-    },
-    {
-      title: "Annual Interest",
-      value: `$ ${formatEther(annualInterest)}`,
-      isLoading: isLoadingBalances || isLoadingFarmConfigs,
-      iconColor: "red",
-      icon: "DollarSign",
-    },
-    {
-      title: "Cumulative Return",
-      value: `$ ${formatEther(cumulativeReturn)}`,
-      isLoading: isLoadingBalances || isLoadingFarmConfigs,
-      iconColor: "yellow",
-      icon: "TrendingUp",
-    },
-  ];
-
   // Write contract hooks
   const { writeContractAsync: writeApprove, isPending: isApprovePending, isSuccess: isApproveSuccess } = useWriteContract();
   const { writeContractAsync: writePurchase, isPending: isPurchasePending, isSuccess: isPurchaseSuccess } = useWriteContract();
+
+  // Pagination calculations
+  const indexOfLast = currentPage * rowsPerPage;
+  const indexOfFirst = indexOfLast - rowsPerPage;
+  const currentTxs = transactions.slice(indexOfFirst, indexOfLast);
+  const totalPages = Math.ceil(transactions.length / rowsPerPage);
 
   // Handle MBT token approval
   const approveTokens = async (amount: bigint) => {
@@ -270,6 +260,11 @@ export default function Dashboard() {
       setPurchaseSuccessDetails({ bonds, farmName: selectedFarmName, txHash });
       setPurchaseError("");
       toast.success(`Successfully purchased ${bonds.toFixed(2)} bonds for ${selectedFarmName}! Transaction: ${txHash}`);
+      
+      // Force recalculation of trends by updating previous values
+      setPreviousTotalBonds(totalBondsOwned);
+      setPreviousAnnualInterest(annualInterest);
+      setPreviousCumulativeReturn(cumulativeReturn);
     } catch (err: any) {
       setPurchaseError(`Transaction failed: ${err.message || err.toString()}`);
     }
@@ -370,6 +365,115 @@ export default function Dashboard() {
   const needsApproval = mbtAllowance ? BigInt(mbtAllowance as bigint) < totalCost : true;
   const canProceed = isValidAmount && hasSufficientBalance;
 
+
+  useEffect(() => {
+    if (!isLoadingBalances && !isLoadingFarmConfigs && totalBondsOwned > 0) {
+      // Calculate percentage changes
+      const totalBondsChange = previousTotalBonds > 0 
+        ? ((totalBondsOwned - previousTotalBonds) / previousTotalBonds) * 100 
+        : 0;
+      
+      const annualInterestChange = previousAnnualInterest > 0 
+        ? ((annualInterest - previousAnnualInterest) / previousAnnualInterest) * 100 
+        : 0;
+      
+      const cumulativeReturnChange = previousCumulativeReturn > 0 
+        ? ((cumulativeReturn - previousCumulativeReturn) / previousCumulativeReturn) * 100 
+        : 0;
+
+      // Update statCards with calculated trends
+      setStatCards([
+        {
+          title: "Total Bonds",
+          value: `${formatEther(totalBondsOwned)}`,
+          isLoading: isLoadingBalances || isLoadingFarmConfigs,
+          iconColor: totalBondsChange >= 0 ? "green" : "red",
+          icon: "Coffee",
+          trend: {
+            value: `${totalBondsChange >= 0 ? '+' : ''}${totalBondsChange.toFixed(1)}%`,
+            isPositive: totalBondsChange >= 0
+          },
+          footerLine1: "Growing steadily",
+          footerLine2: "Based on your current holdings"
+        },
+        {
+          title: "Annual Interest",
+          value: `$ ${formatEther(annualInterest)}`,
+          isLoading: isLoadingBalances || isLoadingFarmConfigs,
+          iconColor: annualInterestChange >= 0 ? "green" : "red",
+          icon: "DollarSign",
+          trend: {
+            value: `${annualInterestChange >= 0 ? '+' : ''}${annualInterestChange.toFixed(1)}%`,
+            isPositive: annualInterestChange >= 0
+          },
+          footerLine1: "Estimated yearly return",
+          footerLine2: "At current rates"
+        },
+        {
+          title: "Cumulative Return",
+          value: `$ ${formatEther(cumulativeReturn)}`,
+          isLoading: isLoadingBalances || isLoadingFarmConfigs,
+          iconColor: cumulativeReturnChange >= 0 ? "green" : "red",
+          icon: "TrendingUp",
+          trend: {
+            value: `${cumulativeReturnChange >= 0 ? '+' : ''}${cumulativeReturnChange.toFixed(1)}%`,
+            isPositive: cumulativeReturnChange >= 0
+          },
+          footerLine1: "5-year projection",
+          footerLine2: "Based on current holdings"
+        },
+      ]);
+
+      // Update previous values
+      setPreviousTotalBonds(totalBondsOwned);
+      setPreviousAnnualInterest(annualInterest);
+      setPreviousCumulativeReturn(cumulativeReturn);
+    }
+  }, [totalBondsOwned, annualInterest, cumulativeReturn, isLoadingBalances, isLoadingFarmConfigs]);
+
+
+  const [statCards, setStatCards] = useState([
+    {
+      title: "Total Bonds",
+      value: `${formatEther(totalBondsOwned)}`,
+      isLoading: isLoadingBalances || isLoadingFarmConfigs,
+      iconColor: "green",
+      icon: "Coffee",
+      trend: {
+        value: "+0.0%",
+        isPositive: true
+      },
+      footerLine1: "Growing steadily",
+      footerLine2: "Based on your current holdings"
+    },
+    {
+      title: "Annual Interest",
+      value: `$ ${formatEther(annualInterest)}`,
+      isLoading: isLoadingBalances || isLoadingFarmConfigs,
+      iconColor: "red",
+      icon: "DollarSign",
+      trend: {
+        value: "+0.0%",
+        isPositive: true
+      },
+      footerLine1: "Estimated yearly return",
+      footerLine2: "At current rates"
+    },
+    {
+      title: "Cumulative Return",
+      value: `$ ${formatEther(cumulativeReturn)}`,
+      isLoading: isLoadingBalances || isLoadingFarmConfigs,
+      iconColor: "yellow",
+      icon: "TrendingUp",
+      trend: {
+        value: "+0.0%",
+        isPositive: true
+      },
+      footerLine1: "5-year projection",
+      footerLine2: "Based on current holdings"
+    },
+  ]);
+
   // Handle MBT amount change
   const handleMbtAmountChange = (value: string) => {
     if (value === '' || (/^\d*\.?\d*$/.test(value) && parseFloat(value) >= 0 && parseFloat(value) <= maxMbtAllowed)) {
@@ -403,9 +507,14 @@ export default function Dashboard() {
     setPurchaseError("");
   };
 
+  // Farm name map
+  const farmNameMap = new Map(farms.map((farm) => [farm.farmId.toString(), farm.config?.name || 'Unknown']));
+
+  
+
   return (
     <div className="min-h-screen bg-[#E6E6E6] dark:bg-gray-900 transition-colors duration-200 text-gray-900 dark:text-white">
-      <Toaster richColors position="bottom-right-right" />
+      <Toaster richColors position="bottom-right" />
       <Header />
       <div className="pt-[72px]">
         <div className="mx-auto py-6 px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 max-w-[1800px]">
@@ -429,86 +538,125 @@ export default function Dashboard() {
                     isLoading={card.isLoading}
                     iconColor={card.iconColor}
                     icon={card.icon}
-                    // compact={window.innerWidth < 768} // Compact on mobile
+                    trend={card.trend}
+                    footerLine1={card.footerLine1}
+                    footerLine2={card.footerLine2}
                   />
                 ))}
               </div>
 
-              {/* Bonds Content */}
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-bold dark:text-white">Your Bonds</h2>
-                  <p className="text-gray-500 dark:text-gray-400">Manage your bond holdings</p>
-                </div>
-                <div className="bg-white dark:bg-gray-800 rounded-lg dark:border-gray-700 overflow-x-auto">
-                  <table className="min-w-full">
-                    <thead>
-                      <tr className="border-b dark:border-gray-800">
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Farm</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Bonds Owned</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Annual Interest</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {isLoadingFarmConfigs || isLoadingBalances ? (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">Loading bonds...</td>
-                        </tr>
-                      ) : farmConfigsError || balanceError ? (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-4 text-center text-red-600 dark:text-red-400">Error loading bonds</td>
-                        </tr>
-                      ) : farms.filter(({ balance }) => balance > 0).length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
-                            No bonds owned. <Link href="/marketplace" className="text-[#522912] dark:text-[#7A5540] cursor-pointer">Buy bonds now</Link>
-                          </td>
-                        </tr>
-                      ) : (
-                        farms
-                          .filter(({ balance }) => balance > 0)
-                          .map(({ farmId, config, balance }) => (
-                            <tr
-                              key={farmId.toString()}
-                              className="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                            >
-                              <td className="px-4 py-2">
-                                <div className="flex flex-col">
-                                  <span className="font-medium dark:text-white">{config?.name || "N/A"}</span>
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">Farm Owner: {truncateAddress(config?.farmOwner)}</span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-2 text-right text-sm dark:text-white">
-                                {formatEther(balance)}
-                              </td>
-                              <td className="px-4 py-2 text-right text-sm dark:text-white">
-                                ${(Number(formatEther(balance)) * 10).toLocaleString()}
-                              </td>
+              {/* Tabs for Bonds and Transactions */}
+              <Tabs defaultValue="bonds" className="space-y-4">
+                <TabsList className="rounded-full bg-white dark:bg-gray-800 p-1">
+                  <TabsTrigger 
+                    value="bonds" 
+                    className="rounded-full data-[state=active]:bg-[#522912] data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-[#522912]"
+                  >
+                    Bonds
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="transactions" 
+                    className="rounded-full data-[state=active]:bg-[#522912] data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-[#522912]"
+                  >
+                    Transactions
+                  </TabsTrigger>
+                </TabsList>
 
-                              <td className="px-4 py-2 text-right text-sm dark:text-white">
-                                {config?.active ? 
-                                  <span className="bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded-full dark:bg-green-900 dark:text-green-300">Active</span>
- : <span className="bg-red-100 text-red-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded-full dark:bg-red-900 dark:text-red-300">Inactive</span>}
-                              </td>
+                <TabsContent value="bonds" className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold dark:text-white">Your Bonds</h2>
+                    <p className="text-gray-500 dark:text-gray-400">Manage your bond holdings</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg dark:border-gray-700 overflow-x-auto">
+                    <FarmsTable 
+                      data={farms
+                        .filter(({ balance }) => balance > 0)
+                        .map(({ farmId, config, balance }) => ({
+                          id: farmId.toString(),
+                          name: config?.name || "N/A",
+                          farmOwner: truncateAddress(config?.farmOwner),
+                          bondsOwned: formatEther(balance),
+                          annualInterest: `$${(Number(formatEther(balance)) * 10).toLocaleString()}`,
+                          status: config?.active ? "Active" : "Inactive",
+                        }))}
+                      onBuyMore={(farmId, farmName) => {
+                        const farm = farms.find(f => f.farmId.toString() === farmId);
+                        if (farm && farm.config) {
+                          handleBuyMoreClick(farmId, farmName, farm.config.minInvestment);
+                        }
+                      }}
+                      isLoading={isLoadingBalances || isLoadingFarmConfigs}
+                      showCheckbox={false}
+                      showActions={false}
+                      showBuyMoreLink={true}
+                      showTabs={false}
+                      showFilter={false}
+                    />
+                  </div>
+                </TabsContent>
 
-                              <td className="px-4 py-2 text-right">
-                                <Button 
-                                  size="sm" 
-                                  className="text-[#7A5540] bg-transparent cursor-pointer font-bold hover:bg-[#6A4A36]"
-                                  onClick={() => config && handleBuyMoreClick(farmId.toString(), config.name, config.minInvestment)}
-                                >
-                                  Buy More
-                                </Button>
-                              </td>
-                            </tr>
-                          ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                <TabsContent value="transactions" className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold dark:text-white">Your Transactions</h2>
+                    <p className="text-gray-500 dark:text-gray-400">Track all your bond-related transactions</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg dark:border-gray-700 overflow-x-auto">
+                    {transactions.length === 0 ? (
+                      <div className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">Transaction section coming soon</div>
+                    ) : (
+                      <FarmsTable 
+                        data={currentTxs.map((tx) => ({
+                          id: tx.farmId,
+                          name: farmNameMap.get(tx.farmId) || 'Unknown Farm',
+                          farmOwner: truncateAddress(tx.txHash),
+                          bondsOwned: (parseFloat(tx.amount) / BOND_MBT).toFixed(2),
+                          annualInterest: `$${((parseFloat(tx.amount) / BOND_MBT) * 10).toLocaleString()}`,
+                          status: tx.type,
+                        }))}
+                        onBuyMore={(farmId, farmName) => {
+                          const farm = farms.find(f => f.farmId.toString() === farmId);
+                          if (farm && farm.config) {
+                            handleBuyMoreClick(farmId, farmName, farm.config.minInvestment);
+                          }
+                        }}
+                        isLoading={isLoadingTransactions}
+                        showCheckbox={false}
+                        showActions={false}
+                        showBuyMoreLink={false}
+                        showTabs={false}
+                        showFilter={false}
+                      />
+                    )}
+
+                    {/* Pagination */}
+                    {transactions.length > 0 && (
+                      <div className="flex justify-between items-center p-4 border-t dark:border-gray-800">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={currentPage === 1} 
+                          onClick={() => setCurrentPage(p => p - 1)}
+                          className="bg-white dark:bg-gray-800 border-none"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          Page {currentPage} of {totalPages}
+                        </span>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          disabled={currentPage === totalPages} 
+                          onClick={() => setCurrentPage(p => p + 1)}
+                          className="bg-white dark:bg-gray-800 border-none"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
 
             {/* Right Column (Quick Actions) */}
@@ -556,7 +704,7 @@ export default function Dashboard() {
           <DialogContent className="bg-gray-50 dark:bg-gray-800 border-none p-6 text-gray-500 sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold dark:text-white">
-                Purchase Bondsfor {selectedFarmName || "Selected Farm"}
+                Purchase Bonds for {selectedFarmName || "Selected Farm"}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">

@@ -1,3 +1,5 @@
+import { http, createPublicClient } from 'viem'
+import { scrollSepolia } from 'viem/chains'
 import vault from "@/ABI/MochaTreeRightsABI.json"
 
 export const MBT_TOKEN_ABI = [
@@ -56,3 +58,8 @@ export const MBT_DECIMALS = 18;
 
 // prev tree contract = 0x4b02Bada976702E83Cf91Cd0B896852099099352
 
+
+export const publicClient = createPublicClient({
+  chain: scrollSepolia,
+  transport: http(),
+})
