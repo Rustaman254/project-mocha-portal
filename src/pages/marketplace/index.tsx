@@ -15,6 +15,8 @@ import { scrollSepolia } from "viem/chains"
 import Header from "@/components/@shared-components/header"
 import { Toaster, toast } from "sonner"
 import { TREE_CONTRACT_ADDRESS, MBT_ADDRESS, TREE_CONTRACT_ABI } from "@/config/constants" 
+import { FarmsTable } from "@/components/@shared-components/FarmsTable"
+import StatCard from '@/components/@shared-components/statCard';
 
 // Types
 interface FarmConfig {
@@ -99,6 +101,16 @@ const MBT_TOKEN_ABI = [
   },
 ] as const;
 
+const ERC4626_ABI = [
+  {
+    "inputs": [],
+    "name": "totalAssets",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+] as const;
+
 const BOND_PRICE_USD = 100;
 const MBT_PRICE_USD = 25;
 const BOND_MBT = BOND_PRICE_USD / MBT_PRICE_USD; // 4 MBT per full bond
@@ -107,6 +119,184 @@ const MBT_DECIMALS = 18;
 // Logging utility
 const logAction = (action: string, details: Record<string, any> = {}) => {
   console.log(`[${new Date().toISOString()}] ${action}`, details);
+};
+
+interface FarmDetailsProps {
+  farmId: string;
+  farmConfig: FarmConfig;
+}
+
+const FarmDetails: React.FC<FarmDetailsProps> = ({ farmId, farmConfig }) => {
+  // Mock data for fields not in farmConfig (replace with actual contract calls if available)
+  const collateral = {
+    totalValue: Number(farmConfig.treeCount) * 100, // Mock total value in USD
+    coverageRatio: Number(farmConfig.collateralRatio) / 100,
+    valuationPerTree: 100, // Mock USD per tree
+    lastUpdated: new Date().toISOString(),
+  };
+
+  const yieldDist = {
+    totalYield: 10000, // Mock
+    pendingYield: 2000, // Mock
+    lastDistribution: new Date().toISOString(), // Mock
+    historicalDistributions: [
+      { date: '2025-01-01', amount: 1000 },
+      { date: '2025-02-01', amount: 1500 },
+      { date: '2025-03-01', amount: 1200 },
+      // Add more historical data as needed
+    ],
+  };
+
+  // Fetch current TVL from shareTokenAddress
+  const { data: currentTVLBigInt } = useReadContract({
+    address: farmConfig.shareTokenAddress,
+    abi: ERC4626_ABI,
+    functionName: 'totalAssets',
+    chainId: scrollSepolia.id,
+  });
+
+  const currentTVL = currentTVLBigInt ? Number(formatUnits(currentTVLBigInt as bigint, MBT_DECIMALS)) : 0;
+  const bondValueNum = Number(formatUnits(farmConfig.bondValue, MBT_DECIMALS));
+  const maxCapacity = Number(farmConfig.treeCount) * bondValueNum;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Collateral Details Section */}
+      <div className="col-span-full">
+        <h2 className="text-lg font-bold mb-2">Collateral Details</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StatCard
+            title="Total Value"
+            value={`$${collateral.totalValue.toLocaleString()}`}
+            icon="DollarSign"
+            iconColor="green"
+            footerLine1={`Last Updated: ${new Date(collateral.lastUpdated).toLocaleDateString()}`}
+          />
+          <StatCard
+            title="Coverage Ratio"
+            value={collateral.coverageRatio.toFixed(2)}
+            icon="TrendingUp"
+            iconColor="yellow"
+          />
+          <StatCard
+            title="Valuation Per Tree"
+            value={`$${collateral.valuationPerTree}`}
+            icon="Coffee"
+            iconColor="green"
+          />
+        </div>
+      </div>
+
+      {/* Yield Distribution History Section */}
+      <div className="col-span-full">
+        <h2 className="text-lg font-bold mb-2">Yield Distribution History</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatCard
+            title="Total Yield"
+            value={`$${yieldDist.totalYield.toLocaleString()}`}
+            icon="DollarSign"
+            iconColor="green"
+          />
+          <StatCard
+            title="Pending Yield"
+            value={`$${yieldDist.pendingYield.toLocaleString()}`}
+            icon="DollarSign"
+            iconColor="yellow"
+          />
+          <StatCard
+            title="Last Distribution"
+            value={new Date(yieldDist.lastDistribution).toLocaleDateString()}
+            icon="TrendingUp"
+            iconColor="green"
+          />
+        </div>
+      </div>
+
+      {/* Investment Capacity Section */}
+      <div className="col-span-full">
+        <h2 className="text-lg font-bold mb-2">Investment Capacity</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <StatCard
+            title="Current TVL"
+            value={`$${currentTVL.toLocaleString()}`}
+            icon="DollarSign"
+            iconColor="green"
+            trend={{
+              value: `${((currentTVL / maxCapacity) * 100).toFixed(0)}%`,
+              isPositive: true,
+            }}
+          />
+          <StatCard
+            title="Max Capacity"
+            value={`$${maxCapacity.toLocaleString()}`}
+            icon="TrendingUp"
+            iconColor="yellow"
+            footerLine1={`Remaining: $${(maxCapacity - currentTVL).toLocaleString()}`}
+          />
+        </div>
+      </div>
+
+      {/* Projected Returns Calculator Section */}
+      <div className="col-span-full">
+        <ProjectedReturnsCalculator farmConfig={farmConfig} />
+      </div>
+    </div>
+  );
+};
+
+const ProjectedReturnsCalculator: React.FC<{ farmConfig: FarmConfig }> = ({ farmConfig }) => {
+  const minInvestment = Number(formatUnits(farmConfig.minInvestment, MBT_DECIMALS));
+  const maxInvestment = Number(formatUnits(farmConfig.maxInvestment, MBT_DECIMALS));
+  const bondValueNum = Number(formatUnits(farmConfig.bondValue, MBT_DECIMALS));
+  const annualInterestRate = Number(farmConfig.targetAPY) / 10000; // Convert to decimal
+  const maturityPeriodYears = Number(farmConfig.maturityPeriod) / 12; // Convert months to years
+
+  const [mbtAmount, setMbtAmount] = useState<number>(minInvestment);
+  const bondCount = mbtAmount / bondValueNum;
+  const annualInterest = (mbtAmount * annualInterestRate).toFixed(2);
+  const cumulativeReturn = (mbtAmount * (1 + annualInterestRate) ** maturityPeriodYears).toFixed(2);
+
+  return (
+    <>
+      <h2 className="text-lg font-bold mb-2">Projected Returns Calculator</h2>
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border dark:border-gray-800">
+        <div className="mb-4">
+          <label htmlFor="mbt-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            MBT Amount (min: {minInvestment.toFixed(2)}, max: {maxInvestment.toFixed(2)})
+          </label>
+          <input
+            id="mbt-input"
+            type="number"
+            min={minInvestment}
+            max={maxInvestment}
+            value={mbtAmount}
+            onChange={(e) => setMbtAmount(Math.min(maxInvestment, Math.max(minInvestment, Number(e.target.value))))}
+            className="w-full px-3 py-2 border rounded-md dark:bg-gray-900 dark:border-gray-700"
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatCard
+            title="Bond Count"
+            value={bondCount.toFixed(2)}
+            icon="Coffee"
+            iconColor="green"
+          />
+          <StatCard
+            title="Annual Interest"
+            value={`$${annualInterest}`}
+            icon="DollarSign"
+            iconColor="yellow"
+          />
+          <StatCard
+            title={`Cumulative Return (over ${maturityPeriodYears.toFixed(1)} years)`}
+            value={`$${cumulativeReturn}`}
+            icon="TrendingUp"
+            iconColor="green"
+          />
+        </div>
+      </div>
+    </>
+  );
 };
 
 export default function Marketplace() {
@@ -589,10 +779,18 @@ export default function Marketplace() {
             </div>
           </div>
 
-          <Tabs defaultValue="All" className="mb-6" value={marketTab} onValueChange={setMarketTabWrapper}>
-            <TabsList className="bg-gray-100 dark:bg-gray-800 border-none">
-              <TabsTrigger value="All">All</TabsTrigger>
-              <TabsTrigger value="Active">
+          <Tabs defaultValue="All" className="space-y-4 mb-4" value={marketTab} onValueChange={setMarketTabWrapper}>
+            <TabsList className="rounded-full bg-white dark:bg-gray-800 p-1">
+              <TabsTrigger 
+                value="All" 
+                className="rounded-full data-[state=active]:bg-[#522912] data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-[#522912]"
+              >
+                All
+              </TabsTrigger>
+              <TabsTrigger 
+                value="Active" 
+                className="rounded-full data-[state=active]:bg-[#522912] data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-[#522912]"
+              >
                 Active
                 <span className="ml-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full">
                   {farms.filter(({ data }) => data?.active).length}
@@ -601,139 +799,51 @@ export default function Marketplace() {
             </TabsList>
           </Tabs>
 
-          <Card className="bg-white dark:bg-gray-800 border-0 shadow-md">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xl font-bold dark:text-white">Available Farms</CardTitle>
-              <CardDescription className="text-gray-500 dark:text-gray-400">
-                Browse and invest in asset-backed bonds
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead className="bg-[#F6F6F6] dark:bg-gray-800">
-                    <tr className="border-b dark:border-gray-800">
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
-                        #
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
-                        Farm
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
-                        Share Token Address
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
-                        Owner
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
-                        Bond Count
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
-                        Annual Interest
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
-                        Collateral Ratio
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
-                        Maturity Period
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
-                        Bond Value
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-900 dark:text-gray-300 uppercase tracking-wider">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {isLoadingActiveFarmIds || isLoadingFarmConfigs ? (
-                      <tr>
-                        <td colSpan={11} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
-                          Loading farms...
-                        </td>
-                      </tr>
-                    ) : activeFarmIdsError || farmConfigsError ? (
-                      <tr>
-                        <td colSpan={11} className="px-4 py-4 text-center text-red-600 dark:text-red-400">
-                          Error loading farms
-                          {logAction("Farm Loading Error", { userAddress, error: (activeFarmIdsError || farmConfigsError)?.message })}
-                        </td>
-                      </tr>
-                    ) : filteredFarms.length === 0 ? (
-                      <tr>
-                        <td colSpan={11} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
-                          No farms found
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredFarms.map(({ farmId, data, error }, index) => (
-                        <tr
-                          key={farmId.toString()}
-                          className="border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer"
-                          onClick={() => handleRowClick({ farmId, data, error })}
-                        >
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            {error ? (
-                              <div className="text-red-600 dark:text-red-400">Error</div>
-                            ) : data ? (
-                              <div className="flex items-center">
-                                <div className="text-sm font-medium text-gray-900 dark:text-white">{data.name}</div>
-                              </div>
-                            ) : null}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                            {error ? "N/A" : data ? truncateAddress(data.shareTokenAddress) : "N/A"}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                            {error ? "N/A" : data ? truncateAddress(data.farmOwner) : "N/A"}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400">
-                            {error ? "N/A" : data ? data.treeCount.toString() : "N/A"}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400">
-                            {error ? "N/A" : data ? `${(Number(data.targetAPY) / 100).toFixed(2)}%` : "N/A"}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400">
-                            {error ? "N/A" : data ? `${(Number(data.collateralRatio) / 100).toFixed(2)}%` : "N/A"}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400">
-                            {error ? "N/A" : data ? `${data.maturityPeriod.toString()} months` : "N/A"}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400">
-                            {error ? "N/A" : data ? `$${formatUnits(data.bondValue, MBT_DECIMALS)}` : "N/A"}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm">
-                            {error ? (
-                              <Badge className="bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300">Error</Badge>
-                            ) : data ? (
-                              data.active ? (
-                                <Badge className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">Active</Badge>
-                              ) : (
-                                <Badge className="bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300">Inactive</Badge>
-                              )
-                            ) : null}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              className="bg-[#7A5540] hover:bg-[#6A4A36] text-white border-none"
-                              disabled={error || !data?.active}
-                              onClick={() => data && handleBuyBondsClick(farmId.toString(), data.name, data.minInvestment)}
-                            >
-                              {isConnected ? "Buy Bonds" : "Connect Wallet"}
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="mb-4">
+            <h2 className="text-xl font-bold dark:text-white">Available Farms</h2>
+            <p className="text-gray-500 dark:text-gray-400">Manage your farm investments</p>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg dark:border-gray-700 overflow-x-auto">
+            {isLoadingActiveFarmIds || isLoadingFarmConfigs ? (
+                <div className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">Loading farms...</div>
+              ) : activeFarmIdsError || farmConfigsError ? (
+                <div className="px-4 py-4 text-center text-red-600 dark:text-red-400">Error loading farms</div>
+              ) : (
+                <FarmsTable
+                  data={filteredFarms.map(({ farmId, data, error }) => ({
+                    id: farmId.toString(),
+                    name: error ? "Error" : data?.name || "N/A",
+                    farmOwner: error ? "N/A" : truncateAddress(data?.farmOwner) || "N/A",
+                    shareTokenAddress: error ? "N/A" : data?.shareTokenAddress || "N/A",
+                    bondsOwned: error ? "N/A" : data?.treeCount.toString() || "N/A",
+                    annualInterest: error ? "N/A" : data ? `${(Number(data.targetAPY) / 100).toFixed(2)}%` : "N/A",
+                    collateralRatio: error ? "N/A" : data ? `${(Number(data.collateralRatio) / 100).toFixed(2)}%` : "N/A",
+                    maturityPeriod: error ? "N/A" : data ? `${data.maturityPeriod.toString()} months` : "N/A",
+                    bondValue: error ? "N/A" : data ? `$${formatUnits(data.bondValue, MBT_DECIMALS)}` : "N/A",
+                    status: error ? "Error" : data?.active ? "Active" : "Inactive",
+                  }))}
+                  onBuyMore={(farmId, farmName) => {
+                    const farm = farms.find(f => f.farmId.toString() === farmId);
+                    if (farm && farm.data) {
+                      handleBuyBondsClick(farmId, farmName, farm.data.minInvestment);
+                    }
+                  }}
+                  isLoading={false}
+                  showCheckbox={false}
+                  showActions={false}
+                  showBuyMoreLink={false}
+                  showTabs={false}
+                  showFilter={false}
+                  isMarketplace={true}
+                  onRowClick={(farm) => {
+                    const selectedFarm = farms.find(f => f.farmId.toString() === farm.id);
+                    if (selectedFarm) {
+                      handleRowClick(selectedFarm);
+                    }
+                  }}
+                />
+              )}
+          </div>
 
           {/* Farm Details Modal */}
           <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpenWrapper}>
@@ -750,12 +860,6 @@ export default function Marketplace() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg text-center w-full h-[400px] flex items-center justify-center">
-                    <div>
-                      <h2 className="text-lg font-semibold dark:text-white mb-2">Farm Location</h2>
-                      <p className="text-gray-500 dark:text-gray-400">Map Coming Soon</p>
-                    </div>
-                  </div> */}
                   <div className="p-4 rounded-lg">
                     <h2 className="text-lg font-semibold dark:text-white mb-3">Farm Information</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -845,6 +949,7 @@ export default function Marketplace() {
                       </Button>
                     </div>
                   </div>
+                  <FarmDetails farmId={selectedFarmData.farmId.toString()} farmConfig={selectedFarmData.data} />
                 </div>
               )}
               <DialogFooter>

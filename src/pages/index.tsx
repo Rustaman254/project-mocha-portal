@@ -8,11 +8,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { useAccount, useReadContract, useReadContracts, useWriteContract, useBalance, usePublicClient, useWatchContractEvent } from "wagmi"
-import { parseEther, formatEther, parseUnits, formatUnits, parseAbiItem} from "viem"
+import { formatEther, parseUnits, formatUnits} from "viem"
 import { scrollSepolia } from "viem/chains"
 import Header from "@/components/@shared-components/header"
 import StatCard from "@/components/@shared-components/statCard"
-import { TREE_CONTRACT_ABI, TREE_CONTRACT_ADDRESS, MBT_ADDRESS } from "@/config/constants"
+import { TREE_CONTRACT_ABI, TREE_CONTRACT_ADDRESS, MBT_ADDRESS, eventsAbi } from "@/config/constants"
 import Link from "next/link"
 import { Toaster, toast } from "sonner"
 import { FarmsTable } from "@/components/@shared-components/FarmsTable"
@@ -206,6 +206,15 @@ export default function Dashboard() {
       setIsApproving(false);
     }
   };
+
+  const logs = publicClient?.getLogs({
+    address: MOCHA_TREE_CONTRACT_ADDRESS,
+    toBlock: 'latest',
+    topics: [
+      null,
+      [userAddress],
+    ],
+  });
 
   // Handle bond purchase
   const handlePurchase = async () => {
@@ -509,9 +518,7 @@ export default function Dashboard() {
 
   // Farm name map
   const farmNameMap = new Map(farms.map((farm) => [farm.farmId.toString(), farm.config?.name || 'Unknown']));
-
   
-
   return (
     <div className="min-h-screen bg-[#E6E6E6] dark:bg-gray-900 transition-colors duration-200 text-gray-900 dark:text-white">
       <Toaster richColors position="bottom-right" />

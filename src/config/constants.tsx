@@ -1,4 +1,4 @@
-import { http, createPublicClient } from 'viem'
+import { http, createPublicClient, parseAbi } from 'viem'
 import { scrollSepolia } from 'viem/chains'
 import vault from "@/ABI/MochaTreeRightsABI.json"
 
@@ -58,8 +58,14 @@ export const MBT_DECIMALS = 18;
 
 // prev tree contract = 0x4b02Bada976702E83Cf91Cd0B896852099099352
 
-
-export const publicClient = createPublicClient({
-  chain: scrollSepolia,
-  transport: http(),
-})
+export const eventsAbi = parseAbi([
+  'event FarmAdded(uint256 indexed farmId, string name, address indexed farmOwner, uint256 treeCount, uint256 bondValue, address shareTokenAddress)',
+  'event BondPurchased(address indexed investor, uint256 indexed farmId, uint256 indexed bondId, uint256 mbtAmount, uint256 shareTokenAmount)',
+  'event YieldDistributed(uint256 indexed farmId, uint256 yieldAmount, uint256 timestamp)',
+  'event BondRedeemed(address indexed investor, uint256 indexed bondId, uint256 redemptionAmount, uint256 timestamp)',
+  'event CollateralUpdated(uint256 indexed farmId, uint256 valuationPerTree, uint256 coverageRatio, uint256 timestamp)',
+  'event FarmSettled(uint256 indexed farmId, uint256 totalYield, uint256 timestamp)',
+  'event BondRedeemed(address indexed investor, uint256 indexed farmId, uint256 indexed bondId, uint256 principalAmount, uint256 yieldAmount)',
+  'event YieldDistributed(uint256 indexed farmId, uint256 totalYield, uint256 distributedAmount, uint256 timestamp)',
+  'event FarmMatured(uint256 indexed farmId, uint256 totalPrincipal, uint256 totalYield, uint256 timestamp)',
+]);
