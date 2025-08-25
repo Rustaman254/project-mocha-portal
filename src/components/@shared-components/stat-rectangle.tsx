@@ -9,7 +9,7 @@ interface StatRectangleProps {
   icon?: ReactNode
 }
 
-export function StatRectangle({ label, value, valueColor = "text-[var(--foreground)]", icon }: StatRectangleProps) {
+export function StatRectangle({ label, value, valueColor = "text-[var(--foreground)] font-bold", icon }: StatRectangleProps) {
   return (
     <div className="bg-white dark:bg-[#1e2939] px-3 py-1.5 rounded-full border-0 flex items-center gap-2">
       {icon}

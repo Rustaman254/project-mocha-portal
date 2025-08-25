@@ -16,7 +16,7 @@ import Header from "@/components/@shared-components/header"
 import { Toaster, toast } from "sonner"
 import { TREE_CONTRACT_ADDRESS, MBT_ADDRESS, TREE_CONTRACT_ABI } from "@/config/constants" 
 import { FarmsTable } from "@/components/@shared-components/FarmsTable"
-import StatCard from '@/components/@shared-components/statCard';
+import StatCard from '@/components/@shared-components/statCard'; // Assuming the provided StatCard is imported from its file
 
 // Types
 interface FarmConfig {

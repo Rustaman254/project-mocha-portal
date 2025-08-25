@@ -156,13 +156,13 @@ export default function Header() {
 
           {/* Desktop navigation - only shown on large screens */}
           <div className="hidden lg:flex items-center space-x-3 lg:space-x-4">
-            <nav className="border dark:border-gray-800 bg-white dark:bg-gray-800 bg-gray-300 rounded-full px-4 lg:px-6 py-1 lg:py-2">
+            <nav className="border dark:border-gray-800 bg-white dark:bg-gray-800 rounded-full px-2 lg:px-2 py-1 lg:py-1">
               <div className="flex items-center space-x-1 lg:space-x-2">
                 {NAV_LINKS.filter(link => link.enabled).map((link) => (
                   <Link key={link.label} href={link.href}>
                     <button
                       className={`px-3 lg:px-4 py-1 lg:py-1.5 rounded-full flex items-center transition-colors text-xs lg:text-sm
-                        ${pathname === link.href ? "text-[#522912] dark:text-white font-semibold" : "text-gray-400 hover:text-[#522912]"}`}
+                        ${pathname === link.href ? "bg-[#522912] text-white dark:bg-white dark:text-[#522912] font-semibold" : "text-gray-400 hover:text-[#522912] dark:hover:text-white"}`}
                     >
                       {link.label}
                     </button>
