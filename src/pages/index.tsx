@@ -16,6 +16,8 @@ import { TREE_CONTRACT_ABI, TREE_CONTRACT_ADDRESS, MBT_ADDRESS, eventsAbi } from
 import Link from "next/link"
 import { Toaster, toast } from "sonner"
 import { FarmsTable } from "@/components/@shared-components/FarmsTable"
+import { ChartLineDefault } from "@/components/@shared-components/charts/chart-line"
+import { ChartRadialShape } from "@/components/@shared-components/charts/chat-radial"
 
 const MOCHA_TREE_CONTRACT_ADDRESS = TREE_CONTRACT_ADDRESS;
 const MOCHA_TREE_CONTRACT_ABI = TREE_CONTRACT_ABI;
@@ -166,8 +168,10 @@ export default function Dashboard() {
 
   // Calculate total bonds owned and interest
   const totalBondsOwned = farms.reduce((sum, { balance }) => sum + Number(balance), 0);
-  const annualInterest = totalBondsOwned * 10; // 10% of $100 per bond
-  const cumulativeReturn = annualInterest * 5; // 5-year term
+  const annualInterestUSD = formatUnits(totalBondsOwned * 10, MBT_DECIMALS); // 10% of $100 per bond
+  const annualInterestMBT = annualInterestUSD * 0.04; // $1 = 0.04 MBT
+  const cumulativeReturnUSD = annualInterestUSD * 5; // 5-year term
+  const cumulativeReturnMBT = cumulativeReturnUSD * 0.04; // $1 = 0.04 MBT
 
   // Write contract hooks
   const { writeContractAsync: writeApprove, isPending: isApprovePending, isSuccess: isApproveSuccess } = useWriteContract();
@@ -272,8 +276,8 @@ export default function Dashboard() {
       
       // Force recalculation of trends by updating previous values
       setPreviousTotalBonds(totalBondsOwned);
-      setPreviousAnnualInterest(annualInterest);
-      setPreviousCumulativeReturn(cumulativeReturn);
+      setPreviousAnnualInterest(annualInterestMBT);
+      setPreviousCumulativeReturn(cumulativeReturnMBT);
     } catch (err: any) {
       setPurchaseError(`Transaction failed: ${err.message || err.toString()}`);
     }
@@ -374,7 +378,6 @@ export default function Dashboard() {
   const needsApproval = mbtAllowance ? BigInt(mbtAllowance as bigint) < totalCost : true;
   const canProceed = isValidAmount && hasSufficientBalance;
 
-
   useEffect(() => {
     if (!isLoadingBalances && !isLoadingFarmConfigs && totalBondsOwned > 0) {
       // Calculate percentage changes
@@ -383,11 +386,11 @@ export default function Dashboard() {
         : 0;
       
       const annualInterestChange = previousAnnualInterest > 0 
-        ? ((annualInterest - previousAnnualInterest) / previousAnnualInterest) * 100 
+        ? ((annualInterestMBT - previousAnnualInterest) / previousAnnualInterest) * 100 
         : 0;
       
       const cumulativeReturnChange = previousCumulativeReturn > 0 
-        ? ((cumulativeReturn - previousCumulativeReturn) / previousCumulativeReturn) * 100 
+        ? ((cumulativeReturnMBT - previousCumulativeReturn) / previousCumulativeReturn) * 100 
         : 0;
 
       // Update statCards with calculated trends
@@ -407,7 +410,7 @@ export default function Dashboard() {
         },
         {
           title: "Annual Interest",
-          value: `$ ${formatEther(annualInterest)}`,
+          value: `${annualInterestMBT.toFixed(2)} MBT`,
           isLoading: isLoadingBalances || isLoadingFarmConfigs,
           iconColor: annualInterestChange >= 0 ? "green" : "red",
           icon: "DollarSign",
@@ -420,7 +423,7 @@ export default function Dashboard() {
         },
         {
           title: "Cumulative Return",
-          value: `$ ${formatEther(cumulativeReturn)}`,
+          value: `${cumulativeReturnMBT.toFixed(2)} MBT`,
           isLoading: isLoadingBalances || isLoadingFarmConfigs,
           iconColor: cumulativeReturnChange >= 0 ? "green" : "red",
           icon: "TrendingUp",
@@ -435,11 +438,10 @@ export default function Dashboard() {
 
       // Update previous values
       setPreviousTotalBonds(totalBondsOwned);
-      setPreviousAnnualInterest(annualInterest);
-      setPreviousCumulativeReturn(cumulativeReturn);
+      setPreviousAnnualInterest(annualInterestMBT);
+      setPreviousCumulativeReturn(cumulativeReturnMBT);
     }
-  }, [totalBondsOwned, annualInterest, cumulativeReturn, isLoadingBalances, isLoadingFarmConfigs]);
-
+  }, [totalBondsOwned, annualInterestMBT, cumulativeReturnMBT, isLoadingBalances, isLoadingFarmConfigs]);
 
   const [statCards, setStatCards] = useState([
     {
@@ -457,7 +459,7 @@ export default function Dashboard() {
     },
     {
       title: "Annual Interest",
-      value: `$ ${formatEther(annualInterest)}`,
+      value: `${annualInterestMBT.toFixed(2)} MBT`,
       isLoading: isLoadingBalances || isLoadingFarmConfigs,
       iconColor: "red",
       icon: "DollarSign",
@@ -470,7 +472,7 @@ export default function Dashboard() {
     },
     {
       title: "Cumulative Return",
-      value: `$ ${formatEther(cumulativeReturn)}`,
+      value: `${cumulativeReturnMBT.toFixed(2)} MBT`,
       isLoading: isLoadingBalances || isLoadingFarmConfigs,
       iconColor: "yellow",
       icon: "TrendingUp",
@@ -575,30 +577,40 @@ export default function Dashboard() {
                     <p className="text-gray-500 dark:text-gray-400">Manage your bond holdings</p>
                   </div>
                   <div className="bg-white dark:bg-gray-800 rounded-lg dark:border-gray-700 overflow-x-auto">
-                    <FarmsTable 
-                      data={farms
-                        .filter(({ balance }) => balance > 0)
-                        .map(({ farmId, config, balance }) => ({
-                          id: farmId.toString(),
-                          name: config?.name || "N/A",
-                          farmOwner: truncateAddress(config?.farmOwner),
-                          bondsOwned: formatEther(balance),
-                          annualInterest: `$${(Number(formatEther(balance)) * 10).toLocaleString()}`,
-                          status: config?.active ? "Active" : "Inactive",
-                        }))}
-                      onBuyMore={(farmId, farmName) => {
-                        const farm = farms.find(f => f.farmId.toString() === farmId);
-                        if (farm && farm.config) {
-                          handleBuyMoreClick(farmId, farmName, farm.config.minInvestment);
-                        }
-                      }}
-                      isLoading={isLoadingBalances || isLoadingFarmConfigs}
-                      showCheckbox={false}
-                      showActions={false}
-                      showBuyMoreLink={true}
-                      showTabs={false}
-                      showFilter={false}
-                    />
+                    {!isConnected ? (
+                      <div className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
+                        Connect wallet to view your bonds
+                      </div>
+                    ) : farms.filter(({ balance }) => balance > 0).length === 0 ? (
+                      <div className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
+                        No bonds yet. <Link href="/marketplace" className="text-[#7A5540] dark:text-amber-600 hover:underline">Buy bonds</Link>
+                      </div>
+                    ) : (
+                      <FarmsTable 
+                        data={farms
+                          .filter(({ balance }) => balance > 0)
+                          .map(({ farmId, config, balance }) => ({
+                            id: farmId.toString(),
+                            name: config?.name || "N/A",
+                            farmOwner: truncateAddress(config?.farmOwner),
+                            bondsOwned: formatEther(balance),
+                            annualInterest: `${(Number(formatEther(balance)) * 0.4).toFixed(2)} MBT`,
+                            status: config?.active ? "Active" : "Inactive",
+                          }))}
+                        onBuyMore={(farmId, farmName) => {
+                          const farm = farms.find(f => f.farmId.toString() === farmId);
+                          if (farm && farm.config) {
+                            handleBuyMoreClick(farmId, farmName, farm.config.minInvestment);
+                          }
+                        }}
+                        isLoading={isLoadingBalances || isLoadingFarmConfigs}
+                        showCheckbox={false}
+                        showActions={false}
+                        showBuyMoreLink={true}
+                        showTabs={false}
+                        showFilter={false}
+                      />
+                    )}
                   </div>
                 </TabsContent>
 
@@ -617,7 +629,7 @@ export default function Dashboard() {
                           name: farmNameMap.get(tx.farmId) || 'Unknown Farm',
                           farmOwner: truncateAddress(tx.txHash),
                           bondsOwned: (parseFloat(tx.amount) / BOND_MBT).toFixed(2),
-                          annualInterest: `$${((parseFloat(tx.amount) / BOND_MBT) * 10).toLocaleString()}`,
+                          annualInterest: `${((parseFloat(tx.amount) / BOND_MBT) * 0.4).toFixed(2)} MBT`,
                           status: tx.type,
                         }))}
                         onBuyMore={(farmId, farmName) => {
@@ -666,41 +678,43 @@ export default function Dashboard() {
               </Tabs>
             </div>
 
-            {/* Right Column (Quick Actions) */}
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 sm:p-6 space-y-6">
-              <div className="flex justify-between items-center">
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400">QUICK ACTIONS</div>
-                <div className="bg-[#7A5540] dark:bg-amber-700 text-white text-xs px-2 py-1 rounded-full">1/1</div>
-              </div>
-              
-              <div className="bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-lg p-4">
+            {/* Right Column (Quick Actions) - Sticky */}
+            <div className="lg:col-span-1 sticky top-[72px] self-start">
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 space-y-6 border dark:border-gray-700">
                 <div className="flex justify-between items-center">
-                  <div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">Next Interest Payment</div>
-                    <div className="text-lg sm:text-xl font-bold dark:text-white">June 15, 2026</div>
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400">QUICK ACTIONS</div>
+                  <div className="bg-[#7A5540] dark:bg-amber-700 text-white text-xs px-2 py-1 rounded-full">1/1</div>
+                </div>
+                
+                <div className="bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-lg p-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Next Interest Payment</div>
+                      <div className="text-lg sm:text-xl font-bold dark:text-white">June 15, 2026</div>
+                    </div>
+                    <div className="bg-gray-100 dark:bg-gray-600 p-2 rounded-lg">
+                      <RefreshCw className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    </div>
                   </div>
-                  <div className="bg-gray-100 dark:bg-gray-600 p-2 rounded-lg">
-                    <RefreshCw className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                  <div className="mt-3 pt-3 border-t dark:border-gray-600">
+                    <div className="text-sm text-gray-500 dark:text-gray-400">Estimated Interest</div>
+                    <div className="text-lg font-medium dark:text-white">{annualInterestMBT.toFixed(2)} MBT</div>
                   </div>
                 </div>
-                <div className="mt-3 pt-3 border-t dark:border-gray-600">
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Estimated Interest</div>
-                  <div className="text-lg font-medium dark:text-white">${formatEther(annualInterest)}</div>
+                
+                <Link href="/marketplace">
+                  <Button className="w-full bg-[#7A5540] hover:bg-[#6A4A36] text-white">
+                    <Coffee className="mr-2 h-4 w-4" />
+                    Buy Bonds
+                  </Button>
+                </Link>
+                
+                <div className="text-center">
+                  <Link href="/farm-reports" className="text-sm text-[#7A5540] dark:text-amber-600 font-medium flex items-center justify-center w-full hover:underline">
+                    View Farm Reports
+                    <ChevronRight className="ml-1 w-4 h-4" />
+                  </Link>
                 </div>
-              </div>
-              
-              <Link href="/marketplace">
-                <Button className="w-full bg-[#7A5540] hover:bg-[#6A4A36] text-white">
-                  <Coffee className="mr-2 h-4 w-4" />
-                  Buy Bonds
-                </Button>
-              </Link>
-              
-              <div className="text-center">
-                <button className="text-sm text-[#7A5540] dark:text-amber-600 font-medium flex items-center justify-center w-full">
-                  View Farm Reports
-                  <ChevronRight className="ml-1 w-4 h-4" />
-                </button>
               </div>
             </div>
           </div>
@@ -858,7 +872,7 @@ export default function Dashboard() {
                   )}
 
                   {isPurchasePending && (
-                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-blue-800">
                       <p className="text-yellow-600 dark:text-yellow-400 text-sm">Purchase transaction pending...</p>
                     </div>
                   )}
