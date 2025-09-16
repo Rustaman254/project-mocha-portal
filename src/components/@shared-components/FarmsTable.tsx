@@ -153,7 +153,7 @@ const getColumns = ({
             onClick={() => onBuyMore(row.original.id, row.original.name)}
             disabled={row.original.status !== "Active"}
           >
-            Buy Bonds
+            Buy Trees
           </Button>
         </div>
       ),
@@ -204,7 +204,7 @@ const getColumns = ({
 
     columns.push({
       accessorKey: "bondsOwned",
-      header: () => <div className="w-full text-right">Bonds Owned</div>,
+      header: () => <div className="w-full text-right">Trees Owned</div>,
       cell: ({ row }) => (
         <div className="text-right font-medium">{row.original.bondsOwned}</div>
       ),

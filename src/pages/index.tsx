@@ -25,7 +25,7 @@ const MOCHA_TREE_CONTRACT_ABI = TREE_CONTRACT_ABI;
 const MBT_TOKEN_ADDRESS = MBT_ADDRESS;
 const BOND_PRICE_USD = 100;
 const MBT_PRICE_USD = 25;
-const BOND_MBT = BOND_PRICE_USD / MBT_PRICE_USD; // 4 MBT per full bond
+const BOND_MBT = BOND_PRICE_USD / MBT_PRICE_USD; // 4 MBT per full Tree
 const MBT_DECIMALS = 18;
 
 // MBT Token ABI
@@ -90,7 +90,7 @@ export default function Dashboard() {
   const [purchaseError, setPurchaseError] = useState("")
   const [isApproving, setIsApproving] = useState(false)
   const [approvalTxHash, setApprovalTxHash] = useState("")
-  const [purchaseSuccessDetails, setPurchaseSuccessDetails] = useState<{ bonds: number; farmName: string; txHash: string } | null>(null)
+  const [purchaseSuccessDetails, setPurchaseSuccessDetails] = useState<{ Trees: number; farmName: string; txHash: string } | null>(null)
   const [transactions, setTransactions] = useState([])
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
@@ -167,9 +167,9 @@ export default function Dashboard() {
     }))
     : [];
 
-  // Calculate total bonds owned and interest
+  // Calculate total Trees owned and interest
   const totalBondsOwned = farms.reduce((sum, { balance }) => sum + Number(balance), 0);
-  const annualInterestUSD = formatUnits(totalBondsOwned * 10, MBT_DECIMALS); // 10% of $100 per bond
+  const annualInterestUSD = formatUnits(totalBondsOwned * 10, MBT_DECIMALS); // 10% of $100 per Tree
   const annualInterestMBT = annualInterestUSD * 0.04; // $1 = 0.04 MBT
   const cumulativeReturnUSD = annualInterestUSD * 5; // 5-year term
   const cumulativeReturnMBT = cumulativeReturnUSD * 0.04; // $1 = 0.04 MBT
@@ -221,7 +221,7 @@ export default function Dashboard() {
     ],
   });
 
-  // Handle bond purchase
+  // Handle Tree purchase
   const handlePurchase = async () => {
     if (!isConnected) {
       setPurchaseError("Please connect your wallet");
@@ -262,7 +262,7 @@ export default function Dashboard() {
     }
 
     try {
-      // Purchase bonds
+      // Purchase Trees
       const txHash = await writePurchase({
         address: MOCHA_TREE_CONTRACT_ADDRESS,
         abi: MOCHA_TREE_CONTRACT_ABI,
@@ -270,10 +270,10 @@ export default function Dashboard() {
         args: [BigInt(selectedFarmId), totalCost],
       });
 
-      const bonds = mbtAmountNum / BOND_MBT;
-      setPurchaseSuccessDetails({ bonds, farmName: selectedFarmName, txHash });
+      const Trees = mbtAmountNum / BOND_MBT;
+      setPurchaseSuccessDetails({ Trees, farmName: selectedFarmName, txHash });
       setPurchaseError("");
-      toast.success(`Successfully purchased ${bonds.toFixed(2)} bonds for ${selectedFarmName}! Transaction: ${txHash}`);
+      toast.success(`Successfully purchased ${Trees.toFixed(2)} Trees for ${selectedFarmName}! Transaction: ${txHash}`);
 
       // Force recalculation of trends by updating previous values
       setPreviousTotalBonds(totalBondsOwned);
@@ -321,17 +321,17 @@ export default function Dashboard() {
       return;
     }
 
-    // Check if user has any bonds - if so, use the first farm they own bonds in
+    // Check if user has any Trees - if so, use the first farm they own Trees in
     const userFarmsWithBonds = farms.filter(({ balance }) => balance > 0);
 
     if (userFarmsWithBonds.length > 0) {
-      // Use the first farm they already have bonds in
+      // Use the first farm they already have Trees in
       const firstFarm = userFarmsWithBonds[0];
       setSelectedFarmId(firstFarm.farmId.toString());
       setSelectedFarmName(firstFarm.config?.name || "Unknown Farm");
       setMbtAmount(Number(formatUnits(firstFarm.config?.minInvestment || BigInt(0), MBT_DECIMALS)).toFixed(2));
     } else {
-      // If they don't have any bonds, use the first available active farm
+      // If they don't have any Trees, use the first available active farm
       const firstActiveFarm = farms.find(farm => farm.config?.active);
       if (firstActiveFarm) {
         setSelectedFarmId(firstActiveFarm.farmId.toString());
@@ -429,7 +429,7 @@ export default function Dashboard() {
       // Update statCards with calculated trends
       setStatCards([
         {
-          title: "Total Bonds",
+          title: "Total Trees",
           value: `${formatEther(totalBondsOwned)}`,
           isLoading: isLoadingBalances || isLoadingFarmConfigs,
           iconColor: totalBondsChange >= 0 ? "green" : "red",
@@ -478,7 +478,7 @@ export default function Dashboard() {
 
   const [statCards, setStatCards] = useState([
     {
-      title: "Total Bonds",
+      title: "Total Trees",
       value: `${formatEther(totalBondsOwned)}`,
       isLoading: isLoadingBalances || isLoadingFarmConfigs,
       iconColor: "green",
@@ -562,7 +562,7 @@ export default function Dashboard() {
         <div className="mx-auto py-6 px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 max-w-[1800px]">
           {/* Header Section */}
           <div className="mb-6">
-            <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">MOCHA ASSET-BACKED BONDS</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">MOCHA ASSET-BACKED Trees</div>
             <h1 className="text-2xl sm:text-3xl font-bold dark:text-white">Dashboard</h1>
           </div>
 
@@ -587,14 +587,14 @@ export default function Dashboard() {
                 ))}
               </div>
 
-              {/* Tabs for Bonds and Transactions */}
-              <Tabs defaultValue="bonds" className="space-y-4">
+              {/* Tabs for Trees and Transactions */}
+              <Tabs defaultValue="Trees" className="space-y-4">
                 <TabsList className="rounded-full bg-white dark:bg-gray-800 p-1">
                   <TabsTrigger
-                    value="bonds"
+                    value="Trees"
                     className="rounded-full data-[state=active]:bg-[#522912] data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-[#522912]"
                   >
-                    Bonds
+                    Trees
                   </TabsTrigger>
                   <TabsTrigger
                     value="transactions"
@@ -604,19 +604,19 @@ export default function Dashboard() {
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="bonds" className="space-y-6">
+                <TabsContent value="Trees" className="space-y-6">
                   <div>
-                    <h2 className="text-xl font-bold dark:text-white">Your Bonds</h2>
-                    <p className="text-gray-500 dark:text-gray-400">Manage your bond holdings</p>
+                    <h2 className="text-xl font-bold dark:text-white">Your Trees</h2>
+                    <p className="text-gray-500 dark:text-gray-400">Manage your Tree holdings</p>
                   </div>
                   <div className="bg-white dark:bg-gray-800 rounded-lg dark:border-gray-700 overflow-x-auto">
                     {!isConnected ? (
                       <div className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
-                        Connect wallet to view your bonds
+                        Connect wallet to view your Trees
                       </div>
                     ) : farms.filter(({ balance }) => balance > 0).length === 0 ? (
                       <div className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
-                        No bonds yet. <Link href="/marketplace" className="text-[#7A5540] dark:text-amber-600 hover:underline">Buy bonds</Link>
+                        No Trees yet. <Link href="/marketplace" className="text-[#7A5540] dark:text-amber-600 hover:underline">Buy Trees</Link>
                       </div>
                     ) : (
                       <FarmsTable
@@ -650,7 +650,7 @@ export default function Dashboard() {
                 <TabsContent value="transactions" className="space-y-6">
                   <div>
                     <h2 className="text-xl font-bold dark:text-white">Your Transactions</h2>
-                    <p className="text-gray-500 dark:text-gray-400">Track all your bond-related transactions</p>
+                    <p className="text-gray-500 dark:text-gray-400">Track all your Tree-related transactions</p>
                   </div>
                   <div className="bg-white dark:bg-gray-800 rounded-lg dark:border-gray-700 overflow-x-auto">
                     {transactions.length === 0 ? (
@@ -740,7 +740,7 @@ export default function Dashboard() {
                   onClick={() => setIsPurchaseModalOpen(true)}
                 >
                   <Coffee className="mr-2 h-4 w-4" />
-                  Buy Bonds
+                  Buy Trees
                 </Button>
 
                 <div className="text-center">
@@ -754,19 +754,20 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Purchase Bonds Modal */}
+        {/* Purchase Trees Modal */}
         <Dialog open={isPurchaseModalOpen} onOpenChange={setIsPurchaseModalOpen}>
           <DialogContent className="bg-gray-50 dark:bg-gray-800 border-none p-6 text-gray-500 sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold dark:text-white">
-                Purchase Bonds for {selectedFarmName || "Selected Farm"}
+                {/* Purchase Trees for {selectedFarmName || "Selected Farm"} */}
+                Invest in a Tree
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               {!isConnected ? (
                 <div className="text-center">
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Please connect your wallet to purchase bonds.
+                    Please connect your wallet to purchase Trees.
                   </p>
                   <Button
                     className="bg-[#7A5540] hover:bg-[#6A4A36] text-white border-none"
@@ -780,7 +781,7 @@ export default function Dashboard() {
                   <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
                   <h3 className="text-2xl font-bold mb-2 dark:text-white">Purchase Successful!</h3>
                   <p className="text-gray-600 dark:text-gray-300 mb-4">
-                    You have purchased {purchaseSuccessDetails.bonds.toFixed(2)} bonds for {purchaseSuccessDetails.farmName}.
+                    You have purchased {purchaseSuccessDetails.Trees.toFixed(2)} Trees for {purchaseSuccessDetails.farmName}.
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     Transaction Hash: {truncateAddress(purchaseSuccessDetails.txHash)}
@@ -846,8 +847,8 @@ export default function Dashboard() {
 
                   <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Bond Cost:</span>
-                      <span className="text-sm text-gray-700 dark:text-gray-200">{BOND_MBT} MBT per bond</span>
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Tree Cost:</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-200">{BOND_MBT} MBT per Tree</span>
                     </div>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total MBT Cost:</span>
@@ -856,9 +857,9 @@ export default function Dashboard() {
                       </span>
                     </div>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Bonds to Purchase:</span>
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Tree to invest in:</span>
                       <span className="text-sm font-bold text-gray-900 dark:text-white">
-                        {bondCount.toFixed(2)} bonds
+                        {bondCount.toFixed(2)} trees
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
@@ -917,11 +918,11 @@ export default function Dashboard() {
                     </p>
                     <ul className="list-disc list-inside space-y-1">
                       <li>Complete KYC/AML verification if required</li>
-                      <li>Receive digital bond tokens upon successful payment</li>
-                      <li>Terms and conditions of the bond purchase agreement</li>
+                      <li>Receive digital Tree tokens upon successful payment</li>
+                      <li>Terms and conditions of the Tree purchase agreement</li>
                     </ul>
                     <p className="mt-2">
-                      Note: 1 bond is equivalent to $100 and requires {BOND_MBT} MBT (since 1 MBT = 1kg roasted coffee ≈ $25). Fractional ownership is supported, with minimum $1 investment (0.04 MBT for 0.01 bond or 1% of a full bond). This enables micro-investing in agricultural assets.
+                      Note: 1 Tree is equivalent to $100 and requires {BOND_MBT} MBT (since 1 MBT = 1kg roasted coffee ≈ $25). Fractional ownership is supported, with minimum $1 investment (0.04 MBT for 0.01 Tree or 1% of a full Tree). This enables micro-investing in agricultural assets.
                     </p>
                   </div>
                 </>
@@ -930,7 +931,7 @@ export default function Dashboard() {
                   <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
                     <AlertTriangle className="w-12 h-12 text-yellow-600 dark:text-yellow-400 mx-auto mb-2" />
                     <p className="text-yellow-800 dark:text-yellow-200 text-sm">
-                      No farm selected. Please select a farm from your bonds list or the marketplace.
+                      No farm selected. Please select a farm from your Trees list or the marketplace.
                     </p>
                   </div>
                 </div>
@@ -970,7 +971,7 @@ export default function Dashboard() {
                         onClick={handlePurchase}
                         disabled={!canProceed || isApproving || isApprovePending || isPurchasePending}
                       >
-                        {isPurchasePending ? "Purchasing..." : `Purchase ${bondCount.toFixed(2)} Bonds`}
+                        {isPurchasePending ? "Purchasing..." : `Purchase ${bondCount.toFixed(2)} Trees`}
                       </Button>
                     )}
                   </>
