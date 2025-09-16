@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { useAccount, useReadContract, useReadContracts, useWriteContract, useBalance, usePublicClient, useWatchContractEvent } from "wagmi"
-import { formatEther, parseUnits, formatUnits} from "viem"
+import { formatEther, parseUnits, formatUnits } from "viem"
 import { scrollSepolia } from "viem/chains"
 import Header from "@/components/@shared-components/header"
 import StatCard from "@/components/@shared-components/statCard"
@@ -110,12 +110,12 @@ export default function Dashboard() {
   // Batch fetch farm configurations
   const farmConfigContracts = activeFarmIds
     ? activeFarmIds.map((farmId) => ({
-        address: MOCHA_TREE_CONTRACT_ADDRESS,
-        abi: MOCHA_TREE_CONTRACT_ABI,
-        functionName: 'getFarmConfig',
-        args: [farmId],
-        chainId: scrollSepolia.id,
-      }))
+      address: MOCHA_TREE_CONTRACT_ADDRESS,
+      abi: MOCHA_TREE_CONTRACT_ABI,
+      functionName: 'getFarmConfig',
+      args: [farmId],
+      chainId: scrollSepolia.id,
+    }))
     : [];
 
   const { data: farmConfigsData, isLoading: isLoadingFarmConfigs, error: farmConfigsError } = useReadContracts({
@@ -125,12 +125,12 @@ export default function Dashboard() {
   // Fetch user balances for each farm's share token (MABB)
   const balanceContracts = farmConfigsData
     ? farmConfigsData.map((result, index) => ({
-        address: result.status === 'success' ? result.result.shareTokenAddress : MOCHA_TREE_CONTRACT_ADDRESS,
-        abi: MOCHA_TREE_CONTRACT_ABI,
-        functionName: 'balanceOf',
-        args: [userAddress],
-        chainId: scrollSepolia.id,
-      }))
+      address: result.status === 'success' ? result.result.shareTokenAddress : MOCHA_TREE_CONTRACT_ADDRESS,
+      abi: MOCHA_TREE_CONTRACT_ABI,
+      functionName: 'balanceOf',
+      args: [userAddress],
+      chainId: scrollSepolia.id,
+    }))
     : [];
 
   const { data: balanceData, isLoading: isLoadingBalances, error: balanceError } = useReadContracts({
@@ -159,11 +159,11 @@ export default function Dashboard() {
   // Process farm and balance data
   const farms = farmConfigsData
     ? farmConfigsData.map((result, index) => ({
-        farmId: activeFarmIds[index],
-        config: result.status === 'success' ? result.result : null,
-        balance: balanceData && balanceData[index]?.status === 'success' ? balanceData[index].result : BigInt(0),
-        error: result.status === 'failure' ? result.error : null,
-      }))
+      farmId: activeFarmIds[index],
+      config: result.status === 'success' ? result.result : null,
+      balance: balanceData && balanceData[index]?.status === 'success' ? balanceData[index].result : BigInt(0),
+      error: result.status === 'failure' ? result.error : null,
+    }))
     : [];
 
   // Calculate total bonds owned and interest
@@ -254,7 +254,7 @@ export default function Dashboard() {
     }
 
     const totalCost = parseUnits(amount.toString(), MBT_DECIMALS);
-    
+
     if (!mbtBalance || BigInt(mbtBalance as bigint) < totalCost) {
       setPurchaseError(`Insufficient MBT balance. You need ${formatUnits(totalCost, MBT_DECIMALS)} MBT`);
       return;
@@ -273,7 +273,7 @@ export default function Dashboard() {
       setPurchaseSuccessDetails({ bonds, farmName: selectedFarmName, txHash });
       setPurchaseError("");
       toast.success(`Successfully purchased ${bonds.toFixed(2)} bonds for ${selectedFarmName}! Transaction: ${txHash}`);
-      
+
       // Force recalculation of trends by updating previous values
       setPreviousTotalBonds(totalBondsOwned);
       setPreviousAnnualInterest(annualInterestMBT);
@@ -381,16 +381,16 @@ export default function Dashboard() {
   useEffect(() => {
     if (!isLoadingBalances && !isLoadingFarmConfigs && totalBondsOwned > 0) {
       // Calculate percentage changes
-      const totalBondsChange = previousTotalBonds > 0 
-        ? ((totalBondsOwned - previousTotalBonds) / previousTotalBonds) * 100 
+      const totalBondsChange = previousTotalBonds > 0
+        ? ((totalBondsOwned - previousTotalBonds) / previousTotalBonds) * 100
         : 0;
-      
-      const annualInterestChange = previousAnnualInterest > 0 
-        ? ((annualInterestMBT - previousAnnualInterest) / previousAnnualInterest) * 100 
+
+      const annualInterestChange = previousAnnualInterest > 0
+        ? ((annualInterestMBT - previousAnnualInterest) / previousAnnualInterest) * 100
         : 0;
-      
-      const cumulativeReturnChange = previousCumulativeReturn > 0 
-        ? ((cumulativeReturnMBT - previousCumulativeReturn) / previousCumulativeReturn) * 100 
+
+      const cumulativeReturnChange = previousCumulativeReturn > 0
+        ? ((cumulativeReturnMBT - previousCumulativeReturn) / previousCumulativeReturn) * 100
         : 0;
 
       // Update statCards with calculated trends
@@ -520,7 +520,7 @@ export default function Dashboard() {
 
   // Farm name map
   const farmNameMap = new Map(farms.map((farm) => [farm.farmId.toString(), farm.config?.name || 'Unknown']));
-  
+
   return (
     <div className="min-h-screen bg-[#E6E6E6] dark:bg-gray-900 transition-colors duration-200 text-gray-900 dark:text-white">
       <Toaster richColors position="bottom-right" />
@@ -557,14 +557,14 @@ export default function Dashboard() {
               {/* Tabs for Bonds and Transactions */}
               <Tabs defaultValue="bonds" className="space-y-4">
                 <TabsList className="rounded-full bg-white dark:bg-gray-800 p-1">
-                  <TabsTrigger 
-                    value="bonds" 
+                  <TabsTrigger
+                    value="bonds"
                     className="rounded-full data-[state=active]:bg-[#522912] data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-[#522912]"
                   >
                     Bonds
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="transactions" 
+                  <TabsTrigger
+                    value="transactions"
                     className="rounded-full data-[state=active]:bg-[#522912] data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-[#522912]"
                   >
                     Transactions
@@ -586,7 +586,7 @@ export default function Dashboard() {
                         No bonds yet. <Link href="/marketplace" className="text-[#7A5540] dark:text-amber-600 hover:underline">Buy bonds</Link>
                       </div>
                     ) : (
-                      <FarmsTable 
+                      <FarmsTable
                         data={farms
                           .filter(({ balance }) => balance > 0)
                           .map(({ farmId, config, balance }) => ({
@@ -623,7 +623,7 @@ export default function Dashboard() {
                     {transactions.length === 0 ? (
                       <div className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">Transaction section coming soon</div>
                     ) : (
-                      <FarmsTable 
+                      <FarmsTable
                         data={currentTxs.map((tx) => ({
                           id: tx.farmId,
                           name: farmNameMap.get(tx.farmId) || 'Unknown Farm',
@@ -650,10 +650,10 @@ export default function Dashboard() {
                     {/* Pagination */}
                     {transactions.length > 0 && (
                       <div className="flex justify-between items-center p-4 border-t dark:border-gray-800">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          disabled={currentPage === 1} 
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={currentPage === 1}
                           onClick={() => setCurrentPage(p => p - 1)}
                           className="bg-white dark:bg-gray-800 border-none"
                         >
@@ -662,10 +662,10 @@ export default function Dashboard() {
                         <span className="text-sm text-gray-500 dark:text-gray-400">
                           Page {currentPage} of {totalPages}
                         </span>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          disabled={currentPage === totalPages} 
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={currentPage === totalPages}
                           onClick={() => setCurrentPage(p => p + 1)}
                           className="bg-white dark:bg-gray-800 border-none"
                         >
@@ -685,7 +685,7 @@ export default function Dashboard() {
                   <div className="text-xs font-medium text-gray-500 dark:text-gray-400">QUICK ACTIONS</div>
                   <div className="bg-[#7A5540] dark:bg-amber-700 text-white text-xs px-2 py-1 rounded-full">1/1</div>
                 </div>
-                
+
                 <div className="bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-lg p-4">
                   <div className="flex justify-between items-center">
                     <div>
@@ -701,14 +701,15 @@ export default function Dashboard() {
                     <div className="text-lg font-medium dark:text-white">{annualInterestMBT.toFixed(2)} MBT</div>
                   </div>
                 </div>
-                
-                <Link href="/marketplace">
-                  <Button className="w-full bg-[#7A5540] hover:bg-[#6A4A36] text-white">
-                    <Coffee className="mr-2 h-4 w-4" />
-                    Buy Bonds
-                  </Button>
-                </Link>
-                
+
+                <Button
+                  className="w-full bg-[#7A5540] hover:bg-[#6A4A36] text-white"
+                  onClick={() => setIsPurchaseModalOpen(true)}
+                >
+                  <Coffee className="mr-2 h-4 w-4" />
+                  Buy Bonds
+                </Button>
+
                 <div className="text-center">
                   <Link href="/farm-reports" className="text-sm text-[#7A5540] dark:text-amber-600 font-medium flex items-center justify-center w-full hover:underline">
                     View Farm Reports
@@ -768,16 +769,16 @@ export default function Dashboard() {
                       <span className="text-sm text-gray-700 dark:text-gray-200">{maxInvestmentNum.toFixed(2)} MBT</span>
                     </div>
                   </div>
-                  
+
                   <div>
                     <label className="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-1">
                       MBT Amount ({minInvestmentNum.toFixed(2)}–{maxInvestmentNum.toFixed(2)} MBT)
                     </label>
                     <div className="flex items-center space-x-2">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="icon"
-                        onClick={decrementAmount} 
+                        onClick={decrementAmount}
                         disabled={mbtAmountNum <= minInvestmentNum}
                         className="bg-white dark:bg-gray-800 border-none"
                       >
@@ -790,17 +791,17 @@ export default function Dashboard() {
                         className="bg-white dark:bg-gray-800 border-none text-center"
                         placeholder={minInvestmentNum.toFixed(2)}
                       />
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="icon"
-                        onClick={incrementAmount} 
+                        onClick={incrementAmount}
                         disabled={mbtAmountNum >= maxMbtAllowed}
                         className="bg-white dark:bg-gray-800 border-none"
                       >
                         +
                       </Button>
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         onClick={setMaxAmount}
                         disabled={maxMbtAllowed <= minInvestmentNum}
                         className="text-sm text-[#7A5540] dark:text-[#A57A5F]"
@@ -809,7 +810,7 @@ export default function Dashboard() {
                       </Button>
                     </div>
                   </div>
-                  
+
                   <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Bond Cost:</span>
@@ -893,7 +894,7 @@ export default function Dashboard() {
                 </>
               )}
             </div>
-            
+
             {isConnected && (
               <DialogFooter className="mt-6 flex justify-end space-x-2">
                 <Button
