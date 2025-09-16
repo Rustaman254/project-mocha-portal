@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -301,7 +302,7 @@ export default function Dashboard() {
     }
   };
 
-  // Handle buy more click
+  // Handle buy more click (from table)
   const handleBuyMoreClick = (farmId: string, farmName: string, minInvestment: bigint) => {
     if (!isConnected) {
       handleConnectWallet();
@@ -311,6 +312,38 @@ export default function Dashboard() {
       setMbtAmount(Number(formatUnits(minInvestment, MBT_DECIMALS)).toFixed(2));
       setIsPurchaseModalOpen(true);
     }
+  };
+
+  // Handle quick buy click (from quick actions)
+  const handleQuickBuyClick = () => {
+    if (!isConnected) {
+      handleConnectWallet();
+      return;
+    }
+
+    // Check if user has any bonds - if so, use the first farm they own bonds in
+    const userFarmsWithBonds = farms.filter(({ balance }) => balance > 0);
+
+    if (userFarmsWithBonds.length > 0) {
+      // Use the first farm they already have bonds in
+      const firstFarm = userFarmsWithBonds[0];
+      setSelectedFarmId(firstFarm.farmId.toString());
+      setSelectedFarmName(firstFarm.config?.name || "Unknown Farm");
+      setMbtAmount(Number(formatUnits(firstFarm.config?.minInvestment || BigInt(0), MBT_DECIMALS)).toFixed(2));
+    } else {
+      // If they don't have any bonds, use the first available active farm
+      const firstActiveFarm = farms.find(farm => farm.config?.active);
+      if (firstActiveFarm) {
+        setSelectedFarmId(firstActiveFarm.farmId.toString());
+        setSelectedFarmName(firstActiveFarm.config?.name || "Unknown Farm");
+        setMbtAmount(Number(formatUnits(firstActiveFarm.config?.minInvestment || BigInt(0), MBT_DECIMALS)).toFixed(2));
+      } else {
+        setPurchaseError("No active farms available for purchase");
+        return;
+      }
+    }
+
+    setIsPurchaseModalOpen(true);
   };
 
   // Effects
@@ -519,7 +552,7 @@ export default function Dashboard() {
   };
 
   // Farm name map
-  const farmNameMap = new Map(farms.map((farm) => [farm.farmId.toString(), farm.config?.name || 'Unknown']));
+  const farmNameMap = new Map(farms.map((farm) => [farm.farmId.toString(), farm.config?.name || 'Unknown']))
 
   return (
     <div className="min-h-screen bg-[#E6E6E6] dark:bg-gray-900 transition-colors duration-200 text-gray-900 dark:text-white">
@@ -753,7 +786,7 @@ export default function Dashboard() {
                     Transaction Hash: {truncateAddress(purchaseSuccessDetails.txHash)}
                   </p>
                 </div>
-              ) : (
+              ) : selectedFarmId ? (
                 <>
                   <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
@@ -892,6 +925,15 @@ export default function Dashboard() {
                     </p>
                   </div>
                 </>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                    <AlertTriangle className="w-12 h-12 text-yellow-600 dark:text-yellow-400 mx-auto mb-2" />
+                    <p className="text-yellow-800 dark:text-yellow-200 text-sm">
+                      No farm selected. Please select a farm from your bonds list or the marketplace.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -902,12 +944,17 @@ export default function Dashboard() {
                   className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-300 border-none"
                   onClick={() => {
                     setIsPurchaseModalOpen(false);
+                    setPurchaseSuccessDetails(null);
+                    setSelectedFarmId("");
+                    setSelectedFarmName("");
+                    setMbtAmount("");
+                    setPurchaseError("");
                   }}
                   disabled={isApprovePending || isPurchasePending || isApproving}
                 >
                   {purchaseSuccessDetails ? "Close" : "Cancel"}
                 </Button>
-                {!purchaseSuccessDetails && (
+                {!purchaseSuccessDetails && selectedFarmId && (
                   <>
                     {needsApproval ? (
                       <Button
