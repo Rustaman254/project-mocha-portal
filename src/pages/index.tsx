@@ -167,6 +167,12 @@ export default function Dashboard() {
     }))
     : [];
 
+  const firstAvailableFarm = farms.find(
+    farm => farm.config?.active && farm.config?.treeCount > 0
+  );
+
+  console.log("First available farm:", firstAvailableFarm);
+
   // Calculate total Trees owned and interest
   const totalBondsOwned = farms.reduce((sum, { balance }) => sum + Number(balance), 0);
   const annualInterestUSD = formatUnits(totalBondsOwned * 10, MBT_DECIMALS); // 10% of $100 per Tree
@@ -314,37 +320,19 @@ export default function Dashboard() {
     }
   };
 
-  // Handle quick buy click (from quick actions)
   const handleQuickBuyClick = () => {
-    if (!isConnected) {
-      handleConnectWallet();
-      return;
-    }
-
-    // Check if user has any Trees - if so, use the first farm they own Trees in
-    const userFarmsWithBonds = farms.filter(({ balance }) => balance > 0);
-
-    if (userFarmsWithBonds.length > 0) {
-      // Use the first farm they already have Trees in
-      const firstFarm = userFarmsWithBonds[0];
-      setSelectedFarmId(firstFarm.farmId.toString());
-      setSelectedFarmName(firstFarm.config?.name || "Unknown Farm");
-      setMbtAmount(Number(formatUnits(firstFarm.config?.minInvestment || BigInt(0), MBT_DECIMALS)).toFixed(2));
+    const availableFarm = farms.find(farm => farm.config?.active && farm.config?.treeCount > 0);
+    if (availableFarm) {
+      setSelectedFarmId(availableFarm.farmId.toString());
+      setSelectedFarmName(availableFarm.config?.name || "Unknown Farm");
+      setMbtAmount(Number(formatUnits(availableFarm.config?.minInvestment || BigInt(0), MBT_DECIMALS)).toFixed(2));
+      setIsPurchaseModalOpen(true);
     } else {
-      // If they don't have any Trees, use the first available active farm
-      const firstActiveFarm = farms.find(farm => farm.config?.active);
-      if (firstActiveFarm) {
-        setSelectedFarmId(firstActiveFarm.farmId.toString());
-        setSelectedFarmName(firstActiveFarm.config?.name || "Unknown Farm");
-        setMbtAmount(Number(formatUnits(firstActiveFarm.config?.minInvestment || BigInt(0), MBT_DECIMALS)).toFixed(2));
-      } else {
-        setPurchaseError("No active farms available for purchase");
-        return;
-      }
+      setPurchaseError("No more Trees available to buy in any farm. Please check back later.");
+      setIsPurchaseModalOpen(true);
     }
-
-    setIsPurchaseModalOpen(true);
   };
+
 
   // Effects
   useEffect(() => {
@@ -658,12 +646,12 @@ export default function Dashboard() {
                     ) : (
                       <FarmsTable
                         data={currentTxs.map((tx) => ({
-                          id: tx.farmId,
-                          name: farmNameMap.get(tx.farmId) || 'Unknown Farm',
+                          id: tx.farmId.toString(),
+                          name: (farmNameMap.get(tx.farmId) || 'Unknown Farm') as string,
                           farmOwner: truncateAddress(tx.txHash),
                           bondsOwned: (parseFloat(tx.amount) / BOND_MBT).toFixed(2),
                           annualInterest: `${((parseFloat(tx.amount) / BOND_MBT) * 0.4).toFixed(2)} MBT`,
-                          status: tx.type,
+                          status: tx.type as string,
                         }))}
                         onBuyMore={(farmId, farmName) => {
                           const farm = farms.find(f => f.farmId.toString() === farmId);
@@ -737,7 +725,7 @@ export default function Dashboard() {
 
                 <Button
                   className="w-full bg-[#7A5540] hover:bg-[#6A4A36] text-white"
-                  onClick={() => setIsPurchaseModalOpen(true)}
+                  onClick={handleQuickBuyClick}
                 >
                   <Coffee className="mr-2 h-4 w-4" />
                   Buy Trees
