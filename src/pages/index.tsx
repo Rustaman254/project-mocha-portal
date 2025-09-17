@@ -962,7 +962,7 @@ export default function Dashboard() {
                         onClick={handlePurchase}
                         disabled={!canProceed || isApproving || isApprovePending || isPurchasePending}
                       >
-                        {isPurchasePending ? "Purchasing..." : `Purchase ${bondCount.toFixed(2)} Trees`}
+                        {isPurchasePending ? "Purchasing..." : `Invest ${bondCount.toFixed(2)} Trees`}
                       </Button>
                     )}
                   </>
