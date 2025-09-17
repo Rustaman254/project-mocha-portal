@@ -596,12 +596,12 @@ export default function Dashboard() {
                   >
                     Trees
                   </TabsTrigger>
-                  <TabsTrigger
+                  {/* <TabsTrigger
                     value="transactions"
                     className="rounded-full data-[state=active]:bg-[#522912] data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-[#522912]"
                   >
                     Transactions
-                  </TabsTrigger>
+                  </TabsTrigger> */}
                 </TabsList>
 
                 <TabsContent value="Trees" className="space-y-6">
