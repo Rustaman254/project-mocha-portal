@@ -417,7 +417,7 @@ export default function Dashboard() {
       // Update statCards with calculated trends
       setStatCards([
         {
-          title: "Total Trees",
+          title: "Locked MBT's",
           value: `${formatEther(totalBondsOwned)}`,
           isLoading: isLoadingBalances || isLoadingFarmConfigs,
           iconColor: totalBondsChange >= 0 ? "green" : "red",
@@ -430,7 +430,7 @@ export default function Dashboard() {
           footerLine2: "Based on your current holdings"
         },
         {
-          title: "Annual Interest",
+          title: "Avilable MBT's",
           value: `${annualInterestMBT.toFixed(2)} MBT`,
           isLoading: isLoadingBalances || isLoadingFarmConfigs,
           iconColor: annualInterestChange >= 0 ? "green" : "red",
@@ -466,7 +466,7 @@ export default function Dashboard() {
 
   const [statCards, setStatCards] = useState([
     {
-      title: "Total Trees",
+      title: "Locked MBT's",
       value: `${formatEther(totalBondsOwned)}`,
       isLoading: isLoadingBalances || isLoadingFarmConfigs,
       iconColor: "green",
@@ -479,7 +479,7 @@ export default function Dashboard() {
       footerLine2: "Based on your current holdings"
     },
     {
-      title: "Annual Interest",
+      title: "Avilable MBT's",
       value: `${annualInterestMBT.toFixed(2)} MBT`,
       isLoading: isLoadingBalances || isLoadingFarmConfigs,
       iconColor: "red",
@@ -728,7 +728,7 @@ export default function Dashboard() {
                   onClick={handleQuickBuyClick}
                 >
                   <Coffee className="mr-2 h-4 w-4" />
-                  Buy Trees
+                  Invest Now
                 </Button>
 
                 <div className="text-center">
