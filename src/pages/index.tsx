@@ -417,7 +417,7 @@ export default function Dashboard() {
       // Update statCards with calculated trends
       setStatCards([
         {
-          title: "Locked MBT's",
+          title: "Locked MBTs",
           value: `${formatEther(totalBondsOwned)}`,
           isLoading: isLoadingBalances || isLoadingFarmConfigs,
           iconColor: totalBondsChange >= 0 ? "green" : "red",
@@ -430,7 +430,7 @@ export default function Dashboard() {
           footerLine2: "Based on your current holdings"
         },
         {
-          title: "Avilable MBT's",
+          title: "Avalable MBTs",
           value: `${annualInterestMBT.toFixed(2)} MBT`,
           isLoading: isLoadingBalances || isLoadingFarmConfigs,
           iconColor: annualInterestChange >= 0 ? "green" : "red",
@@ -443,7 +443,7 @@ export default function Dashboard() {
           footerLine2: "At current rates"
         },
         {
-          title: "Cumulative Return",
+          title: "MBT Cumulative Return",
           value: `${cumulativeReturnMBT.toFixed(2)} MBT`,
           isLoading: isLoadingBalances || isLoadingFarmConfigs,
           iconColor: cumulativeReturnChange >= 0 ? "green" : "red",
@@ -466,7 +466,7 @@ export default function Dashboard() {
 
   const [statCards, setStatCards] = useState([
     {
-      title: "Locked MBT's",
+      title: "Locked MBTs",
       value: `${formatEther(totalBondsOwned)}`,
       isLoading: isLoadingBalances || isLoadingFarmConfigs,
       iconColor: "green",
@@ -479,7 +479,7 @@ export default function Dashboard() {
       footerLine2: "Based on your current holdings"
     },
     {
-      title: "Avilable MBT's",
+      title: "Avalable MBTs",
       value: `${annualInterestMBT.toFixed(2)} MBT`,
       isLoading: isLoadingBalances || isLoadingFarmConfigs,
       iconColor: "red",
@@ -492,7 +492,7 @@ export default function Dashboard() {
       footerLine2: "At current rates"
     },
     {
-      title: "Cumulative Return",
+      title: "MBT Cumulative Return",
       value: `${cumulativeReturnMBT.toFixed(2)} MBT`,
       isLoading: isLoadingBalances || isLoadingFarmConfigs,
       iconColor: "yellow",
@@ -550,7 +550,7 @@ export default function Dashboard() {
         <div className="mx-auto py-6 px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 max-w-[1800px]">
           {/* Header Section */}
           <div className="mb-6">
-            <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">MOCHA ASSET-BACKED Trees</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">MOCHA ASSET-BACKED INVESTMENTS</div>
             <h1 className="text-2xl sm:text-3xl font-bold dark:text-white">Dashboard</h1>
           </div>
 
@@ -582,20 +582,20 @@ export default function Dashboard() {
                     value="Trees"
                     className="rounded-full data-[state=active]:bg-[#522912] data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-[#522912]"
                   >
-                    Trees
+                    Investments
                   </TabsTrigger>
-                  {/* <TabsTrigger
+                  <TabsTrigger
                     value="transactions"
                     className="rounded-full data-[state=active]:bg-[#522912] data-[state=active]:text-white dark:data-[state=active]:bg-white dark:data-[state=active]:text-[#522912]"
                   >
                     Transactions
-                  </TabsTrigger> */}
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="Trees" className="space-y-6">
                   <div>
-                    <h2 className="text-xl font-bold dark:text-white">Your Trees</h2>
-                    <p className="text-gray-500 dark:text-gray-400">Manage your Tree holdings</p>
+                    <h2 className="text-xl font-bold dark:text-white">Your Investments</h2>
+                    <p className="text-gray-500 dark:text-gray-400">Manage your MBT holdings</p>
                   </div>
                   <div className="bg-white dark:bg-gray-800 rounded-lg dark:border-gray-700 overflow-x-auto">
                     {!isConnected ? (
