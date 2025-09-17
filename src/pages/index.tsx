@@ -430,7 +430,7 @@ export default function Dashboard() {
           footerLine2: "Based on your current holdings"
         },
         {
-          title: "Avalable MBTs",
+          title: "Available MBTs",
           value: `${annualInterestMBT.toFixed(2)} MBT`,
           isLoading: isLoadingBalances || isLoadingFarmConfigs,
           iconColor: annualInterestChange >= 0 ? "green" : "red",
@@ -443,7 +443,7 @@ export default function Dashboard() {
           footerLine2: "At current rates"
         },
         {
-          title: "MBT Cumulative Return",
+          title: "MBTs Cumulative Return",
           value: `${cumulativeReturnMBT.toFixed(2)} MBT`,
           isLoading: isLoadingBalances || isLoadingFarmConfigs,
           iconColor: cumulativeReturnChange >= 0 ? "green" : "red",
@@ -479,7 +479,7 @@ export default function Dashboard() {
       footerLine2: "Based on your current holdings"
     },
     {
-      title: "Avalable MBTs",
+      title: "Available MBTs",
       value: `${annualInterestMBT.toFixed(2)} MBT`,
       isLoading: isLoadingBalances || isLoadingFarmConfigs,
       iconColor: "red",
@@ -492,7 +492,7 @@ export default function Dashboard() {
       footerLine2: "At current rates"
     },
     {
-      title: "MBT Cumulative Return",
+      title: "MBTs Cumulative Return",
       value: `${cumulativeReturnMBT.toFixed(2)} MBT`,
       isLoading: isLoadingBalances || isLoadingFarmConfigs,
       iconColor: "yellow",
