@@ -732,10 +732,10 @@ export default function Dashboard() {
                 </Button>
 
                 <div className="text-center">
-                  <Link href="/farm-reports" className="text-sm text-[#7A5540] dark:text-amber-600 font-medium flex items-center justify-center w-full hover:underline">
+                  {/* <Link href="/farm-reports" className="text-sm text-[#7A5540] dark:text-amber-600 font-medium flex items-center justify-center w-full hover:underline">
                     View Farm Reports
                     <ChevronRight className="ml-1 w-4 h-4" />
-                  </Link>
+                  </Link> */}
                 </div>
               </div>
             </div>
