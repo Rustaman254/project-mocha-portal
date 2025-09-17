@@ -204,7 +204,7 @@ const getColumns = ({
 
     columns.push({
       accessorKey: "bondsOwned",
-      header: () => <div className="w-full text-right">Trees Owned</div>,
+      header: () => <div className="w-full text-right">Invested Trees</div>,
       cell: ({ row }) => (
         <div className="text-right font-medium">{row.original.bondsOwned}</div>
       ),

@@ -414,11 +414,14 @@ export default function Dashboard() {
         ? ((cumulativeReturnMBT - previousCumulativeReturn) / previousCumulativeReturn) * 100
         : 0;
 
-      // Update statCards with calculated trends
+
+      const totalBondsOwnedMBT = Number(formatUnits(totalBondsOwned, MBT_DECIMALS));
+      // const totalTrees = totalBondsOwnedMBT / 4;
+
       setStatCards([
         {
           title: "Locked MBTs",
-          value: `${formatEther(totalBondsOwned)}`,
+          value: `${totalBondsOwnedMBT.toFixed(2)} MBT`,
           isLoading: isLoadingBalances || isLoadingFarmConfigs,
           iconColor: totalBondsChange >= 0 ? "green" : "red",
           icon: "Coffee",
