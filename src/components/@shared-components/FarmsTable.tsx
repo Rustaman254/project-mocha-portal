@@ -188,19 +188,19 @@ const getColumns = ({
       });
     }
 
-    columns.push({
-      accessorKey: "name",
-      header: "Farm",
-      cell: ({ row }) => (
-        <div className="flex flex-col">
-          <span className="font-medium">{row.original.name}</span>
-          <span className="text-xs text-muted-foreground">
-            Owner: {row.original.farmOwner}
-          </span>
-        </div>
-      ),
-      enableHiding: false,
-    });
+    // columns.push({
+    //   accessorKey: "name",
+    //   header: "Farm",
+    //   cell: ({ row }) => (
+    //     <div className="flex flex-col">
+    //       <span className="font-medium">{row.original.name}</span>
+    //       <span className="text-xs text-muted-foreground">
+    //         Owner: {row.original.farmOwner}
+    //       </span>
+    //     </div>
+    //   ),
+    //   enableHiding: false,
+    // });
 
     columns.push({
       accessorKey: "bondsOwned",
