@@ -69,7 +69,7 @@ export function SwapToMBTComponent() {
     <div className="bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-lg p-4 mb-2 w-full max-w-lg">
       {/* Card Title */}
       <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-sm text-gray-600 dark:text-white">Swap to MBT <span className="text-danger font-bold">(this does not work yet.)</span></h2>
+        <h2 className="text-sm text-gray-600 dark:text-white">Swap to MBT <span className="text-amber-600 font-bold">(this does not work yet.)</span></h2>
       </div>
 
       {/* YOU PAY ROW */}
