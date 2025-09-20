@@ -19,6 +19,7 @@ import { Toaster, toast } from "sonner"
 import { FarmsTable } from "@/components/@shared-components/FarmsTable"
 import { ChartLineDefault } from "@/components/@shared-components/charts/chart-line"
 import { ChartRadialShape } from "@/components/@shared-components/charts/chat-radial"
+import { SwapToMBTComponent } from "@/components/@shared-components/swapToMBT"
 
 const MOCHA_TREE_CONTRACT_ADDRESS = TREE_CONTRACT_ADDRESS;
 const MOCHA_TREE_CONTRACT_ABI = TREE_CONTRACT_ABI;
@@ -558,11 +559,11 @@ export default function Dashboard() {
           </div>
 
           {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
             {/* Left Column (Stats + Tables) */}
             <div className="lg:col-span-2 space-y-6">
               {/* Stats Cards - Responsive Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                 {statCards.map((card, index) => (
                   <StatCard
                     key={index}
@@ -704,11 +705,14 @@ export default function Dashboard() {
 
             {/* Right Column (Quick Actions) - Sticky */}
             <div className="lg:col-span-1 sticky top-[72px] self-start">
+              <SwapToMBTComponent />
+              
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 space-y-6 border dark:border-gray-700">
                 <div className="flex justify-between items-center">
                   <div className="text-xs font-medium text-gray-500 dark:text-gray-400">QUICK ACTIONS</div>
                   <div className="bg-[#7A5540] dark:bg-amber-700 text-white text-xs px-2 py-1 rounded-full">1/1</div>
                 </div>
+
 
                 <div className="bg-gray-50 dark:bg-gray-700 border dark:border-gray-600 rounded-lg p-4">
                   <div className="flex justify-between items-center">
@@ -727,7 +731,7 @@ export default function Dashboard() {
                 </div>
 
                 <Button
-                  className="w-full bg-[#7A5540] hover:bg-[#6A4A36] text-white"
+                  className="w-full bg-[#7A5540] rounded-full hover:bg-[#6A4A36] text-white"
                   onClick={handleQuickBuyClick}
                 >
                   <Coffee className="mr-2 h-4 w-4" />
