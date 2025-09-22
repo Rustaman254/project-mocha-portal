@@ -1,6 +1,7 @@
 import { http, createPublicClient, parseAbi } from 'viem'
 import { scrollSepolia } from 'viem/chains'
 import vault from "@/ABI/MochaTreeRightsABI.json"
+import ico from "@/ABI/ICO.json"
 
 export const MBT_TOKEN_ABI = [
   {
@@ -52,7 +53,10 @@ export const MBT_TOKEN_ABI = [
 
 export const TREE_CONTRACT_ADDRESS = "0x22CBb67b45a95bE78bBaBa8a1196b49eFd1dFa5e" as const;
 export const MBT_ADDRESS = "0xb75083585DcB841b8B04ffAC89c78a16f2a5598B" as const;
+export const ICO_ADDRESS = '0x41e0A6Ac84cC531f6Aa3cC89Ad2a2F2661703F15' as const;
 export const TREE_CONTRACT_ABI = vault.abi;
+export const ICO_ABI = ico.abi;
+
 
 export const MBT_DECIMALS = 18;
 
