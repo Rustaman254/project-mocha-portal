@@ -169,9 +169,11 @@ export function SwapToMBTComponent() {
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm text-gray-600 dark:text-gray-400">
               Swap to MBT{" "}
-              <span className="text-amber-600 font-bold">(Does not work yet)</span>
+              
             </h2>
+          
           </div>
+            <p className="text-brown-100 font-bold text-xs">Step 1: Acquire the Mocha Bean Token (MBT) to invest in our trees</p>
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-1">
               <ArrowUpRight className="h-4 w-4 text-amber-600 dark:text-amber-400 mr-1" />
