@@ -83,7 +83,7 @@ export function SwapToMBTComponent() {
   const { data: preview } = usePreviewTokenPurchase(selected.paymentMethod, formattedAmount);
   // const [tokensToReceive, usdValue] = (preview ?? [0n, 0n]) as [bigint, bigint];
   const [tokensToReceive, usdValue] = preview;
-  const formattedUsdValue = Number(formatUnits(usdValue, USD_DECIMALS));
+  const formattedUsdValue = Number(formatUnits(usdValue, 18)); //the contract returns the value in 18 decimals
 
   console.log(tokensToReceive, usdValue)
 
