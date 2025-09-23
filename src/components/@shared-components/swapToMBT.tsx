@@ -14,10 +14,10 @@ import {
 import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
 
 type SupportedToken = {
-  label: "ETH" | "USDC" | "SCROLL";
+  label: "ETH" | "USDC" | "USDT"| "SCROLL";
   paymentMethod: string;
   decimals: number;
-  contractFunc: "buyTokensWithEth" | "buyTokensWithUsdc" | "buyTokensWithScr";
+  contractFunc: "buyTokensWithEth" | "buyTokensWithUsdc" | "buyTokensWithUsdt" | "buyTokensWithScr";
   needsValue: boolean;
   tokenAddress?: `0x${string}`;
 };
@@ -37,6 +37,14 @@ const supportedTokens: SupportedToken[] = [
     contractFunc: "buyTokensWithUsdc",
     needsValue: false,
     tokenAddress: "0x8142c0238aa0EA3788e6eFC617134DBC0b7339B0",
+  },
+    {
+    label: "USDT",
+    paymentMethod: "USDT",
+    decimals: 6,
+    contractFunc: "buyTokensWithUsdt",
+    needsValue: false,
+    tokenAddress: "0xD078ada0e09058927630e328CcC7eBB7dC80797a",
   },
   {
     label: "SCROLL",
