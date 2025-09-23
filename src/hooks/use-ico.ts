@@ -33,7 +33,7 @@ function useSwapTokens(functionName: string, args: any[], value: bigint | undefi
       abi: ICO_ABI,
       functionName,
       args,
-      ...(value ? { value } : {}), // Include value only for ETH
+      ...(value !== undefined && value > 0 ? { value } : {}), // Include value only for ETH
     });
   }
 
