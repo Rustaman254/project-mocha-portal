@@ -85,7 +85,7 @@ export function SwapToMBTComponent() {
   const [tokensToReceive, usdValue] = preview;
   const formattedUsdValue = Number(formatUnits(usdValue, 18)); //the contract returns the value in 18 decimals
 
-  console.log(tokensToReceive, usdValue)
+ 
 
   let swapArgs: any[] = [];
   let swapValue: bigint | undefined = undefined;
@@ -94,8 +94,10 @@ export function SwapToMBTComponent() {
     swapValue = formattedAmount;
   } else if (selected.label === "USDC" || selected.label === "SCROLL") {
     swapArgs = [formattedAmount, tokensToReceive];
-    swapValue = undefined;
+    //swapValue = undefined;
   }
+
+  console.log("swapArgs", swapArgs, "swapValue", swapValue)
 
   const {
     swap,
@@ -104,7 +106,12 @@ export function SwapToMBTComponent() {
     isPending,
     isConfirming,
     isConfirmed,
-  } = useSwapTokens(selected.contractFunc, swapArgs, swapValue);
+  } = useSwapTokens(
+    selected.contractFunc,
+    swapArgs,
+    swapValue,
+    selected.label !== "ETH" ? selected.tokenAddress : undefined
+  );
 
   const withdrawalFee = 0.005;
   const txFee = 0.002;
