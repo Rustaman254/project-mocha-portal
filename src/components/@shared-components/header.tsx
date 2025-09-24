@@ -119,7 +119,7 @@ export default function Header() {
             <div className="hidden sm:flex items-center gap-2 lg:gap-3 text-xs lg:text-sm">
               <StatRectangle label="MBT Balance" value={`${formatMbtBalance()} MBT`} valueColor="text-green-400" />
               <StatRectangle label="TVL" value={`${formatTotalValueLocked()} MBT`} valueColor="text-green-400" />
-              <StatRectangle label="Total Active Bonds" value={`${formatTotalActiveBonds()}`} valueColor="text-green-400" />
+              <StatRectangle label="Total Active Investments" value={`${formatTotalActiveBonds()}`} valueColor="text-green-400" />
             </div>
           </div>
           {/* Desktop navigation, unchanged */}

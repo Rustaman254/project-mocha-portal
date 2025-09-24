@@ -111,7 +111,7 @@ export default function Dashboard() {
 
   // Batch fetch farm configurations
   const farmConfigContracts = activeFarmIds
-    ? activeFarmIds.map((farmId) => ({
+    ? activeFarmIds.map((farmId: any) => ({
       address: MOCHA_TREE_CONTRACT_ADDRESS,
       abi: MOCHA_TREE_CONTRACT_ABI,
       functionName: 'getFarmConfig',
@@ -126,7 +126,7 @@ export default function Dashboard() {
 
   // Fetch user balances for each farm's share token (MABB)
   const balanceContracts = farmConfigsData
-    ? farmConfigsData.map((result, index) => ({
+    ? farmConfigsData.map((result: { status: string; result: { shareTokenAddress: any } }, index: any) => ({
       address: result.status === 'success' ? result.result.shareTokenAddress : MOCHA_TREE_CONTRACT_ADDRESS,
       abi: MOCHA_TREE_CONTRACT_ABI,
       functionName: 'balanceOf',
@@ -160,7 +160,7 @@ export default function Dashboard() {
 
   // Process farm and balance data
   const farms = farmConfigsData
-    ? farmConfigsData.map((result, index) => ({
+    ? farmConfigsData.map((result: { status: string; result: any; error: any }, index: string | number) => ({
       farmId: activeFarmIds[index],
       config: result.status === 'success' ? result.result : null,
       balance: balanceData && balanceData[index]?.status === 'success' ? balanceData[index].result : BigInt(0),
@@ -169,13 +169,13 @@ export default function Dashboard() {
     : [];
 
   const firstAvailableFarm = farms.find(
-    farm => farm.config?.active && farm.config?.treeCount > 0
+    (    farm: { config: { active: any; treeCount: number } }) => farm.config?.active && farm.config?.treeCount > 0
   );
 
   console.log("First available farm:", firstAvailableFarm);
 
   // Calculate total Trees owned and interest
-  const totalBondsOwned = farms.reduce((sum, { balance }) => sum + Number(balance), 0);
+  const totalBondsOwned = farms.reduce((sum: number, { balance }: any) => sum + Number(balance), 0);
   const annualInterestUSD = formatUnits(totalBondsOwned * 10, MBT_DECIMALS); // 10% of $100 per Tree
   const annualInterestMBT = annualInterestUSD * 0.04; // $1 = 0.04 MBT
   const cumulativeReturnUSD = annualInterestUSD * 5; // 5-year term
@@ -222,10 +222,10 @@ export default function Dashboard() {
   const logs = publicClient?.getLogs({
     address: MOCHA_TREE_CONTRACT_ADDRESS,
     toBlock: 'latest',
-    topics: [
-      null,
-      [userAddress],
-    ],
+    events: eventsAbi,
+    args: {
+      user: userAddress
+    }
   });
 
   // Handle Tree purchase
@@ -322,7 +322,7 @@ export default function Dashboard() {
   };
 
   const handleQuickBuyClick = () => {
-    const availableFarm = farms.find(farm => farm.config?.active && farm.config?.treeCount > 0);
+    const availableFarm = farms.find((farm: { config: { active: any; treeCount: number } }) => farm.config?.active && farm.config?.treeCount > 0);
     if (availableFarm) {
       setSelectedFarmId(availableFarm.farmId.toString());
       setSelectedFarmName(availableFarm.config?.name || "Unknown Farm");
@@ -371,7 +371,7 @@ export default function Dashboard() {
     localStorage.setItem("darkMode", darkMode.toString())
   }, [darkMode])
 
-  const truncateAddress = (address) => {
+  const truncateAddress = (address: string | any[]) => {
     if (!address) return "N/A"
     return `${address.slice(0, 6)}...${address.slice(-4)}`
   }
@@ -386,7 +386,7 @@ export default function Dashboard() {
   };
 
   // Purchase calculations
-  const selectedFarm = farms.find(farm => farm.farmId.toString() === selectedFarmId);
+  const selectedFarm = farms.find((farm: { farmId: { toString: () => string } }) => farm.farmId.toString() === selectedFarmId);
   const minInvestment = selectedFarm?.config?.minInvestment || BigInt(0);
   const maxInvestment = selectedFarm?.config?.maxInvestment || BigInt(0);
   const minInvestmentNum = Number(formatUnits(minInvestment, MBT_DECIMALS));
@@ -544,7 +544,7 @@ export default function Dashboard() {
   };
 
   // Farm name map
-  const farmNameMap = new Map(farms.map((farm) => [farm.farmId.toString(), farm.config?.name || 'Unknown']))
+  const farmNameMap = new Map(farms.map((farm: { farmId: { toString: () => any }; config: { name: any } }) => [farm.farmId.toString(), farm.config?.name || 'Unknown']))
 
   return (
     <div className="min-h-screen bg-[#E6E6E6] dark:bg-gray-900 transition-colors duration-200 text-gray-900 dark:text-white">
@@ -623,7 +623,7 @@ export default function Dashboard() {
                             status: config?.active ? "Active" : "Inactive",
                           }))}
                         onBuyMore={(farmId, farmName) => {
-                          const farm = farms.find(f => f.farmId.toString() === farmId);
+                          const farm = farms.find((f: { farmId: { toString: () => string } }) => f.farmId.toString() === farmId);
                           if (farm && farm.config) {
                             handleBuyMoreClick(farmId, farmName, farm.config.minInvestment);
                           }
@@ -658,7 +658,7 @@ export default function Dashboard() {
                           status: tx.type as string,
                         }))}
                         onBuyMore={(farmId, farmName) => {
-                          const farm = farms.find(f => f.farmId.toString() === farmId);
+                          const farm = farms.find((f: { farmId: { toString: () => string } }) => f.farmId.toString() === farmId);
                           if (farm && farm.config) {
                             handleBuyMoreClick(farmId, farmName, farm.config.minInvestment);
                           }
