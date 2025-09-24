@@ -103,4 +103,42 @@ function useSwapTokens(functionName: string, args: any[], value?: bigint | undef
   return { swap, hash, error, isPending, isConfirming, isConfirmed };
 }
 
-export { usePreviewTokenPurchase, useSwapTokens };
+function useMinPurchases() {
+  const minEth = useReadContract({
+    address: ICO_ADDRESS,
+    abi: ICO_ABI,
+    functionName: 'minEthPurchase',
+    watch: true,
+  });
+
+  const minUsdt = useReadContract({
+    address: ICO_ADDRESS,
+    abi: ICO_ABI,
+    functionName: 'minUsdtPurchase',
+    watch: true,
+  });
+
+  const minUsdc = useReadContract({
+    address: ICO_ADDRESS,
+    abi: ICO_ABI,
+    functionName: 'minUsdcPurchase',
+    watch: true,
+  });
+
+  const minScr = useReadContract({
+    address: ICO_ADDRESS,
+    abi: ICO_ABI,
+    functionName: 'minScrPurchase',
+    watch: true,
+  });
+
+  return {
+    minEth: minEth.data as bigint | undefined,
+    minUsdt: minUsdt.data as bigint | undefined,
+    minUsdc: minUsdc.data as bigint | undefined,
+    minScr: minScr.data as bigint | undefined,
+  };
+}
+
+
+export { usePreviewTokenPurchase, useSwapTokens, useMinPurchases };

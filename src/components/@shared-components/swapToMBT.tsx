@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAccount, useBalance } from "wagmi";
-import { usePreviewTokenPurchase, useSwapTokens } from "@/hooks/use-ico";
+import { usePreviewTokenPurchase, useSwapTokens, useMinPurchases } from "@/hooks/use-ico";
 import { formatUnits, parseUnits } from "viem/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -77,6 +77,7 @@ export function SwapToMBTComponent() {
   const [fromToken, setFromToken] = useState<SupportedToken["label"]>(supportedTokens[0].label);
   const [amount, setAmount] = useState<string>("");
   const [showPreview, setShowPreview] = useState<boolean>(false);
+  const { minEth, minUsdt, minUsdc, minScr } = useMinPurchases();
   const [result, setResult] = useState<string>("");
 
   const { address } = useAccount();
@@ -151,7 +152,20 @@ export function SwapToMBTComponent() {
     setAmount(selected.label === "ETH"
       ? roundToFour(parseFloat(tokenBalance) * 0.5)
       : (parseFloat(tokenBalance) * 0.5).toString());
-  const handleSetMin = () => setAmount("1");
+  const handleSetMin = () => {
+    let minValue = "1";
+    if (selected.label === "ETH" && minEth) {
+      minValue = roundToFour(formatUnits(minEth, 18));
+    } else if (selected.label === "USDT" && minUsdt) {
+      minValue = formatUnits(minUsdt, 6);
+    } else if (selected.label === "USDC" && minUsdc) {
+      minValue = formatUnits(minUsdc, 6);
+    } else if (selected.label === "SCROLL" && minScr) {
+      minValue = formatUnits(minScr, 18);
+    }
+    setAmount(minValue);
+  };
+
 
   const handleSwap = (e: React.FormEvent) => {
     e.preventDefault();
