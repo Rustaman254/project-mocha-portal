@@ -731,7 +731,7 @@ export default function Dashboard() {
                 </div>
 
                 <Button
-                  className="w-full bg-[#7A5540] rounded-full hover:bg-[#6A4A36] text-white"
+                  className="w-full bg-[#522912] rounded-full hover:bg-[#6A4A36] text-white"
                   onClick={handleQuickBuyClick}
                 >
                   <Coffee className="mr-2 h-4 w-4" />
