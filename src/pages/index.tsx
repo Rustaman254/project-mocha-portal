@@ -751,14 +751,14 @@ export default function Dashboard() {
 
         {/* Purchase Trees Modal */}
         <Dialog open={isPurchaseModalOpen} onOpenChange={setIsPurchaseModalOpen}>
-          <DialogContent className="bg-gray-50 dark:bg-gray-800 border-none p-6 text-gray-500 sm:max-w-md">
+          <DialogContent className="bg-gray-50 dark:bg-gray-800 border-none p-6 text-gray-500 sm:max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold dark:text-white">
                 {/* Purchase Trees for {selectedFarmName || "Selected Farm"} */}
                 Invest in a Tree
               </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[calc(90vh-200px)] overflow-y-auto">
               {!isConnected ? (
                 <div className="text-center">
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
@@ -843,26 +843,26 @@ export default function Dashboard() {
                   <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Tree Cost:</span>
-                      <span className="text-sm text-gray-700 dark:text-gray-200">{BOND_MBT} MBT per Tree</span>
+                          <span className="text-sm text-gray-700 dark:text-gray-200">{BOND_MBT} MBT per Tree ( ${ BOND_MBT*25})</span>
                     </div>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total MBT Cost:</span>
                       <span className="text-sm font-bold text-gray-900 dark:text-white">
-                        {mbtAmountNum.toFixed(2)} MBT
+                        {mbtAmountNum.toFixed(2)} MBT ( ${ mbtAmountNum*25})
                       </span>
                     </div>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Tree to invest in:</span>
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Tree(s) to invest in:</span>
                       <span className="text-sm font-bold text-gray-900 dark:text-white">
                         {bondCount.toFixed(2)} trees
                       </span>
                     </div>
-                    <div className="flex justify-between items-center">
+                   {/*  <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-gray-600 dark:text-gray-300">USD Equivalent:</span>
                       <span className="text-sm text-gray-700 dark:text-gray-200">
                         ${(mbtAmountNum * MBT_PRICE_USD).toLocaleString()}
                       </span>
-                    </div>
+                    </div> */}
                   </div>
 
                   {!hasSufficientBalance && mbtAmount && (
@@ -934,7 +934,7 @@ export default function Dashboard() {
             </div>
 
             {isConnected && (
-              <DialogFooter className="mt-6 flex justify-end space-x-2">
+              <DialogFooter className="mt-4 flex justify-end space-x-2 flex-shrink-0">
                 <Button
                   variant="outline"
                   className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-300 border-none"
@@ -966,7 +966,7 @@ export default function Dashboard() {
                         onClick={handlePurchase}
                         disabled={!canProceed || isApproving || isApprovePending || isPurchasePending}
                       >
-                        {isPurchasePending ? "Purchasing..." : `Invest ${bondCount.toFixed(2)} Trees`}
+                        {isPurchasePending ? "Purchasing..." : `Invest in ${bondCount.toFixed(2)} Trees`}
                       </Button>
                     )}
                   </>
