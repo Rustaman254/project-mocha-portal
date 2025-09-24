@@ -177,7 +177,7 @@ export function SwapToMBTComponent() {
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm text-gray-600 dark:text-gray-400">
               Swap to MBT{" "}
-              <span className="text-amber-600 font-bold">(Does not work yet)</span>
+              {/* <span className="text-amber-600 font-bold">(Does not work yet)</span> */}
             </h2>
           </div>
           <div className="flex items-center justify-between mb-1">
