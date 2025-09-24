@@ -115,7 +115,7 @@ export function SwapToMBTComponent() {
   if (selected.label === "ETH") {
     swapArgs = [address, tokensToReceive];
     swapValue = formattedAmount;
-  } else if (selected.label === "USDC" || selected.label === "SCROLL") {
+  } else if (selected.label === "USDC" || selected.label === "USDT" || selected.label === "SCROLL") {
     swapArgs = [formattedAmount, tokensToReceive];
   }
 
@@ -132,6 +132,8 @@ export function SwapToMBTComponent() {
     swapValue,
     selected.label !== "ETH" ? selected.tokenAddress : undefined
   );
+
+
 
   const withdrawalFee = 0.005;
   const txFee = 0.002;
