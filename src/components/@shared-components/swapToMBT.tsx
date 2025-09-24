@@ -14,7 +14,7 @@ import {
 import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
 
 type SupportedToken = {
-  label: "ETH" | "USDC" | "USDT"| "SCROLL";
+  label: "ETH" | "USDC" | "USDT" | "SCROLL";
   paymentMethod: string;
   decimals: number;
   contractFunc: "buyTokensWithEth" | "buyTokensWithUsdc" | "buyTokensWithUsdt" | "buyTokensWithScr";
@@ -38,7 +38,7 @@ const supportedTokens: SupportedToken[] = [
     needsValue: false,
     tokenAddress: "0x8142c0238aa0EA3788e6eFC617134DBC0b7339B0",
   },
-    {
+  {
     label: "USDT",
     paymentMethod: "USDT",
     decimals: 6,
@@ -56,6 +56,21 @@ const supportedTokens: SupportedToken[] = [
   },
 ];
 
+// Add rounding helpers for MBT and USD
+function roundToThree(num) {
+  if (!num || isNaN(Number(num))) return "0.000";
+  return (Math.round(Number(num) * 1000) / 1000).toFixed(3);
+}
+function roundToWhole(num) {
+  if (!num || isNaN(Number(num))) return "0";
+  return Math.round(Number(num)).toString();
+}
+
+function roundToFour(value) {
+  if (!value || isNaN(Number(value))) return "0";
+  return (Math.round(Number(value) * 10000) / 10000).toFixed(4);
+}
+
 const USD_DECIMALS = 6;
 
 export function SwapToMBTComponent() {
@@ -67,7 +82,8 @@ export function SwapToMBTComponent() {
   const { address } = useAccount();
 
   const selected = supportedTokens.find((t) => t.label === fromToken)!;
-  const formattedAmount = amount && Number(amount) > 0 ? parseUnits(amount, selected.decimals) : BigInt(0);
+  const roundedAmount = selected.label === "ETH" && amount ? roundToFour(amount) : amount;
+  const formattedAmount = roundedAmount && Number(roundedAmount) > 0 ? parseUnits(roundedAmount, selected.decimals) : BigInt(0);
 
   const ethBalanceQuery = useBalance({
     address,
@@ -83,17 +99,15 @@ export function SwapToMBTComponent() {
     }
   });
 
+  const rawEthBalance = ethBalanceQuery.data?.formatted ?? "0";
   const tokenBalance: string =
     selected.label === "ETH"
-      ? ethBalanceQuery.data?.formatted ?? "0"
+      ? roundToFour(rawEthBalance)
       : erc20BalanceQuery.data?.formatted ?? "0";
 
   const { data: preview } = usePreviewTokenPurchase(selected.paymentMethod, formattedAmount);
-  // const [tokensToReceive, usdValue] = (preview ?? [0n, 0n]) as [bigint, bigint];
-  const [tokensToReceive, usdValue] = preview;
-  const formattedUsdValue = Number(formatUnits(usdValue, 18)); //the contract returns the value in 18 decimals
-
- 
+  const [tokensToReceive, usdValue] = preview ?? [BigInt(0), BigInt(0)];
+  const formattedUsdValue = Number(formatUnits(usdValue, 18));
 
   let swapArgs: any[] = [];
   let swapValue: bigint | undefined = undefined;
@@ -102,10 +116,7 @@ export function SwapToMBTComponent() {
     swapValue = formattedAmount;
   } else if (selected.label === "USDC" || selected.label === "SCROLL") {
     swapArgs = [formattedAmount, tokensToReceive];
-    //swapValue = undefined;
   }
-
-  console.log("swapArgs", swapArgs, "swapValue", swapValue)
 
   const {
     swap,
@@ -126,22 +137,39 @@ export function SwapToMBTComponent() {
   const totalFeePct = withdrawalFee + txFee;
   const feeUsd = formattedUsdValue * totalFeePct;
   const netUsd = formattedUsdValue - feeUsd;
-  const netUsdDisplay =
-    netUsd > 0 ? netUsd.toLocaleString(undefined, { maximumFractionDigits: 6 }) : "0";
+  // Use roundToWhole for net US Dollar
+  const netUsdDisplay = netUsd > 0 ? roundToWhole(netUsd) : "0";
 
+  // Use roundToThree for MBT, roundToWhole for $ inside template
   const mbtDisplay =
     tokensToReceive && formattedAmount > BigInt(0)
-      ? `${Number(formatUnits(tokensToReceive, 18)).toLocaleString(undefined, { maximumFractionDigits: 6 })} MBT ($${formattedUsdValue.toLocaleString(undefined, { maximumFractionDigits: 6 })})`
+      ? `${roundToThree(Number(formatUnits(tokensToReceive, 18)))} MBT ($${roundToWhole(formattedUsdValue)})`
       : "";
 
-  const handleSetMax = () => setAmount(tokenBalance.toString());
+  const handleSetMax = () => setAmount(selected.label === "ETH" ? roundToFour(tokenBalance) : tokenBalance.toString());
   const handleSetHalf = () =>
-    setAmount((parseFloat(tokenBalance) * 0.5).toString());
+    setAmount(selected.label === "ETH"
+      ? roundToFour(parseFloat(tokenBalance) * 0.5)
+      : (parseFloat(tokenBalance) * 0.5).toString());
   const handleSetMin = () => setAmount("1");
 
   const handleSwap = (e: React.FormEvent) => {
     e.preventDefault();
+    if (selected.label === "ETH" && amount) {
+      setAmount(roundToFour(amount));
+    }
     setShowPreview(true);
+  };
+
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    if (selected.label === "ETH" && value) {
+      const parts = value.split(".");
+      if (parts.length === 2 && parts[1].length > 4) {
+        value = parts[0] + "." + parts[1].slice(0, 4);
+      }
+    }
+    setAmount(value);
   };
 
   const handleConfirmSwap = async () => {
@@ -177,11 +205,9 @@ export function SwapToMBTComponent() {
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm text-gray-600 dark:text-gray-400">
               Swap to MBT{" "}
-              
             </h2>
-          
           </div>
-            <p className="text-brown-100 font-bold text-xs">Step 1: Acquire the Mocha Bean Token (MBT) to invest in our trees</p>
+          <p className="text-brown-100 font-bold text-xs">Step 1: Acquire the Mocha Bean Token (MBT) to invest in our trees</p>
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-1">
               <ArrowUpRight className="h-4 w-4 text-amber-600 dark:text-amber-400 mr-1" />
@@ -198,14 +224,14 @@ export function SwapToMBTComponent() {
               type="number"
               step="any"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={handleAmountChange}
               placeholder="0.00"
               min={0}
               className="w-3/4 text-2xl bg-transparent border-none focus:outline-none text-gray-800 dark:text-gray-100 font-bold placeholder-gray-300 dark:placeholder-gray-500"
             />
             <div className="ml-3 w-1/4 flex items-center">
               <Select
-                onValueChange={value =>
+                onValueChange={(value) =>
                   setFromToken(value as SupportedToken["label"])
                 }
                 defaultValue={supportedTokens[0].label}
@@ -214,7 +240,7 @@ export function SwapToMBTComponent() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {supportedTokens.map(t => (
+                  {supportedTokens.map((t) => (
                     <SelectItem key={t.label} value={t.label}>
                       {t.label}
                     </SelectItem>
@@ -286,20 +312,14 @@ export function SwapToMBTComponent() {
           </h3>
           <div className="mb-2 p-2 rounded bg-gray-100 dark:bg-gray-800">
             <p>
-              You pay: {amount} {selected.label}
+              You pay: {roundedAmount} {selected.label}
             </p>
             <p>
               You receive:{" "}
-              {Number(formatUnits(tokensToReceive, 18)).toLocaleString(undefined, {
-                maximumFractionDigits: 6,
-              })}{" "}
-              MBT
+              {roundToThree(Number(formatUnits(tokensToReceive, 18)))} MBT
             </p>
             <p>
-              Value before fees: $
-              {formattedUsdValue.toLocaleString(undefined, {
-                maximumFractionDigits: 6,
-              })}
+              Value before fees: ${roundToWhole(formattedUsdValue)}
             </p>
             <p>Withdrawal Fee: 0.5% | Transaction Fee: 0.2%</p>
             <p>
