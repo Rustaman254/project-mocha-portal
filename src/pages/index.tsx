@@ -274,7 +274,7 @@ export default function Dashboard() {
         address: MOCHA_TREE_CONTRACT_ADDRESS,
         abi: MOCHA_TREE_CONTRACT_ABI,
         functionName: 'purchaseBond',
-        args: [BigInt(selectedFarmId), totalCost],
+        args: [totalCost],
       });
 
       const Trees = mbtAmountNum / BOND_MBT;
