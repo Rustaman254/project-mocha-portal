@@ -53,7 +53,7 @@ export const MBT_TOKEN_ABI = [
 
 export const TREE_CONTRACT_ADDRESS = "0xE3aDf96188a9eE2C859037ffB3B6a3725dF67f0D" as const;
 export const MBT_ADDRESS = "0xb75083585DcB841b8B04ffAC89c78a16f2a5598B" as const;
-export const ICO_ADDRESS = '0x4dffF4592F2367Dd54fc9e9855e19FDd1cD84BBf' as const;
+export const ICO_ADDRESS = '0x2Df7A763506708787737584248CC34a2c57E18Ad' as const;
 export const TREE_CONTRACT_ABI = vault.abi;
 export const ICO_ABI = ico.abi;
 
