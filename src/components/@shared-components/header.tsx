@@ -23,8 +23,9 @@ const USER_LINKS = [
 
 const ADMIN_LINKS = [
   ...USER_LINKS,
-  { label: "Add Farm", href: "/admin", enabled: true, icon: Coins },
+  { label: "Admin", href: "/admin", enabled: true, icon: Coins },
   { label: "Farms", href: "/farms", enabled: true, icon: Coins },
+  { label: "Events Log", href: "/logs", enabled: true, icon: Coins },
 ]
 
 export default function Header() {
