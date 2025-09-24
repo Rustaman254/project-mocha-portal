@@ -298,12 +298,14 @@ export function SwapToMBTComponent() {
             </span>
           </div>
           <Button
-            className="w-full bg-[#522912] rounded-full hover:bg-[#6A4A36] text-white py-3 text-lg"
+            className="w-full bg-[#522912] rounded-full hover:bg-[#6A4A36] text-white py-3 text-sm flex items-center justify-center gap-2"
             disabled={!amount || !address}
             type="submit"
           >
+            <ArrowUpRight className="w-5 h-5 mr-2" />
             Preview Swap
           </Button>
+
         </form>
       ) : (
         <div>
@@ -330,7 +332,7 @@ export function SwapToMBTComponent() {
             <p>Maturity Time: 7 days</p>
           </div>
           <Button
-            className="w-full bg-emerald-700 hover:bg-emerald-800 text-white py-3 text-lg"
+            className="w-full bg-emerald-700 hover:bg-emerald-800 text-white py-3 text-sm"
             disabled={isPending || isConfirming}
             onClick={handleConfirmSwap}
           >
