@@ -9,20 +9,16 @@ import { usePathname } from "next/navigation"
 import { useAppKit, useAppKitAccount } from "@reown/appkit/react"
 import { StatRectangle } from "./stat-rectangle"
 import { useAccount, useReadContract } from "wagmi"
-import { scrollSepolia } from "viem/chains"
+import { scroll } from "viem/chains"
 import { formatUnits } from "viem"
 import { MBT_ADDRESS, MBT_TOKEN_ABI, MBT_DECIMALS, TREE_CONTRACT_ADDRESS, TREE_CONTRACT_ABI } from "@/config/constants"
 import { isAdminAddress } from "@/lib/admin"
 
-console.log(isAdminAddress("0x80569F788Ca7564429feB8Aabdd4Ff73e0aC98E0"));
-console.log(isAdminAddress("0x80569f788ca7564429feb8aabdd4ff73e0ac98e0"));
-
 const USER_LINKS = [
-  { label: "Dashboard", href: "/", enabled: true, icon: LayoutDashboard },
+  // { label: "Dashboard", href: "/", enabled: true, icon: LayoutDashboard },
 ]
 
 const ADMIN_LINKS = [
-  ...USER_LINKS,
   { label: "Admin", href: "/admin", enabled: true, icon: Coins },
   { label: "Farms", href: "/farms", enabled: true, icon: Coins },
   { label: "Events Log", href: "/logs", enabled: true, icon: Coins },
@@ -62,7 +58,7 @@ export default function Header() {
     abi: MBT_TOKEN_ABI,
     functionName: "balanceOf",
     args: [userAddress],
-    chainId: scrollSepolia.id,
+    chainId: scroll.id,
     query: { enabled: isConnected && !!userAddress, retry: 3 },
   })
 
@@ -70,7 +66,7 @@ export default function Header() {
     address: TREE_CONTRACT_ADDRESS,
     abi: TREE_CONTRACT_ABI,
     functionName: "totalActiveBonds",
-    chainId: scrollSepolia.id,
+    chainId: scroll.id,
     query: { enabled: isConnected, retry: 3 },
   })
 
@@ -78,7 +74,7 @@ export default function Header() {
     address: TREE_CONTRACT_ADDRESS,
     abi: TREE_CONTRACT_ABI,
     functionName: "totalValueLocked",
-    chainId: scrollSepolia.id,
+    chainId: scroll.id,
     query: { enabled: isConnected, retry: 3 },
   })
 

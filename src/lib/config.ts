@@ -5,9 +5,9 @@ import type { ContractAddresses } from "./types"
 
 export const CONTRACT_ADDRESSES: ContractAddresses = {
   // Main Vault System Contracts
-  mttrVault: "0x469c371658bDf39Ad23AEEb4836C81eF745BB962", // MochaTreeRightsToken (ERC4626 Vault)
+  mttrVault: "0x9954EBb3B6aa9992f86663B6C5e183d83Cf99591", // MochaTreeRightsToken (ERC4626 Vault)
   diamond: "0x31058580845A8ed67F404fF5863b30f1b8CF7412", // TreeFarmDiamond (Main Diamond)
-  mbtToken: "0x043D8606399A3600Ba8fcA555273892b46680825", // MochaBeanToken (ERC20) ✅ VERIFIED
+  mbtToken: "0x2133f731449A73b772dda06b0cA03c9Efda6a359", // MochaBeanToken (ERC20) ✅ VERIFIED
   mltToken: "0x53815508558bF029ecBE190A4631876783ac27e6", // MochaLandToken (ERC721)
   mttToken: "0x52cEf0a50A38AD9468C5fde0292E7c2FbB0AaDb5", // MochaTreeToken (ERC6960)
   
@@ -22,14 +22,14 @@ export const CONTRACT_ADDRESSES: ContractAddresses = {
 }
 
 // Admin address (deployer)
-export const ADMIN_ADDRESS = "0x80569F788Ca7564429feB8Aabdd4Ff73e0aC98E0"
+export const ADMIN_ADDRESS = "0x6ed208C1E6a012118194C4457fE8Dc3215ea971a"
 
 
 export const config = createConfig({
-  chains: [scrollSepolia],
+  chains: [scroll],
   transports: {
-      [scrollSepolia.id]: http(),
+      [scroll.id]: http(),
   },
 });
 
-export const SUPPORTED_CHAIN = scrollSepolia
+export const SUPPORTED_CHAIN = scroll

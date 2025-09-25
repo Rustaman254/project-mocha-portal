@@ -14,10 +14,10 @@ import {
 import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
 
 type SupportedToken = {
-  label: "ETH" | "USDC" | "USDT" | "SCROLL";
+  label: "ETH" | "USDC" | "USDT" | "SCROLL" | "WBTC";
   paymentMethod: string;
   decimals: number;
-  contractFunc: "buyTokensWithEth" | "buyTokensWithUsdc" | "buyTokensWithUsdt" | "buyTokensWithScr";
+  contractFunc: "buyTokensWithEth" | "buyTokensWithUsdc" | "buyTokensWithUsdt" | "buyTokensWithScr" | "buyTokensWithWbtc";
   needsValue: boolean;
   tokenAddress?: `0x${string}`;
 };
@@ -36,7 +36,7 @@ const supportedTokens: SupportedToken[] = [
     decimals: 6,
     contractFunc: "buyTokensWithUsdc",
     needsValue: false,
-    tokenAddress: "0x8142c0238aa0EA3788e6eFC617134DBC0b7339B0",
+    tokenAddress: "0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df",
   },
   {
     label: "USDT",
@@ -44,7 +44,7 @@ const supportedTokens: SupportedToken[] = [
     decimals: 6,
     contractFunc: "buyTokensWithUsdt",
     needsValue: false,
-    tokenAddress: "0xD078ada0e09058927630e328CcC7eBB7dC80797a",
+    tokenAddress: "0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df",
   },
   {
     label: "SCROLL",
@@ -52,7 +52,15 @@ const supportedTokens: SupportedToken[] = [
     decimals: 18,
     contractFunc: "buyTokensWithScr",
     needsValue: false,
-    tokenAddress: "0xDEdB65B3a8d970995a26b25F1BA406dbb321D168",
+    tokenAddress: "0xd29687c813D741E2F938F4aC377128810E217b1b",
+  },
+    {
+    label: "WBTC",
+    paymentMethod: "WBTC",
+    decimals: 18,
+    contractFunc: "buyTokensWithWbtc",
+    needsValue: false,
+    tokenAddress: "0xd29687c813D741E2F938F4aC377128810E217b1b",
   },
 ];
 
@@ -115,7 +123,7 @@ export function SwapToMBTComponent() {
   if (selected.label === "ETH") {
     swapArgs = [address, tokensToReceive];
     swapValue = formattedAmount;
-  } else if (selected.label === "USDC" || selected.label === "USDT" || selected.label === "SCROLL") {
+  } else if (selected.label === "USDC" || selected.label === "USDT" || selected.label === "SCROLL" || selected.label === "WBTC") {
     swapArgs = [formattedAmount, tokensToReceive];
   }
 

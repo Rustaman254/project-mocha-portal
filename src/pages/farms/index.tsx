@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { useAccount, useReadContract, useReadContracts, useWriteContract, usePublicClient } from "wagmi"
 import { parseUnits, formatUnits } from "viem"
-import { scrollSepolia } from "viem/chains"
+import { scroll } from "viem/chains"
 import Header from "@/components/@shared-components/header"
 import { Toaster, toast } from "sonner"
 import { TREE_CONTRACT_ADDRESS, MBT_ADDRESS, TREE_CONTRACT_ABI } from "@/config/constants" 
@@ -152,7 +152,7 @@ const FarmDetails: React.FC<FarmDetailsProps> = ({ farmId, farmConfig }) => {
     address: farmConfig.shareTokenAddress,
     abi: ERC4626_ABI,
     functionName: 'totalAssets',
-    chainId: scrollSepolia.id,
+    chainId: scroll.id,
   });
 
   const currentTVL = currentTVLBigInt ? Number(formatUnits(currentTVLBigInt as bigint, MBT_DECIMALS)) : 0;
@@ -301,7 +301,7 @@ const ProjectedReturnsCalculator: React.FC<{ farmConfig: FarmConfig }> = ({ farm
 
 export default function Marketplace() {
   const { address: userAddress, isConnected } = useAccount();
-  const publicClient = usePublicClient({ chainId: scrollSepolia.id });
+  const publicClient = usePublicClient({ chainId: scroll.id });
   
   // State variables with proper typing
   const [marketTab, setMarketTab] = useState<"All" | "Active">("All");
@@ -325,7 +325,7 @@ export default function Marketplace() {
     address: MOCHA_TREE_CONTRACT_ADDRESS,
     abi: MOCHA_TREE_CONTRACT_ABI,
     functionName: 'getActiveFarmIds',
-    chainId: scrollSepolia.id,
+    chainId: scroll.id,
   });
 
   const farmConfigContracts = activeFarmIds
@@ -334,7 +334,7 @@ export default function Marketplace() {
         abi: MOCHA_TREE_CONTRACT_ABI,
         functionName: 'getFarmConfig',
         args: [farmId],
-        chainId: scrollSepolia.id,
+        chainId: scroll.id,
       }))
     : [];
 
@@ -348,7 +348,7 @@ export default function Marketplace() {
     abi: MBT_TOKEN_ABI,
     functionName: 'balanceOf',
     args: [userAddress],
-    chainId: scrollSepolia.id,
+    chainId: scroll.id,
     query: { enabled: isConnected },
   });
 
@@ -357,7 +357,7 @@ export default function Marketplace() {
     abi: MBT_TOKEN_ABI,
     functionName: 'allowance',
     args: [userAddress, MOCHA_TREE_CONTRACT_ADDRESS],
-    chainId: scrollSepolia.id,
+    chainId: scroll.id,
     query: { enabled: isConnected },
   });
 

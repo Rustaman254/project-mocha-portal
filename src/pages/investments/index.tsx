@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { useAccount, useReadContract, useReadContracts, useWriteContract, useBalance, usePublicClient } from "wagmi"
 import { parseEther, formatEther, parseUnits, formatUnits } from "viem"
-import { scrollSepolia } from "viem/chains"
+import { scroll } from "viem/chains"
 import Header from "@/components/@shared-components/header"
 import StatCard from "@/components/@shared-components/statCard"
 import { TREE_CONTRACT_ABI, TREE_CONTRACT_ADDRESS, MBT_ADDRESS } from "@/config/constants"
@@ -76,7 +76,7 @@ const MBT_TOKEN_ABI = [
 
 export default function Investments() {
   const { address: userAddress, isConnected } = useAccount()
-  const publicClient = usePublicClient({ chainId: scrollSepolia.id });
+  const publicClient = usePublicClient({ chainId: scroll.id });
   const [sortBy, setSortBy] = useState("name")
   const [sortOrder, setSortOrder] = useState("asc")
   const [searchQuery, setSearchQuery] = useState("")
@@ -94,7 +94,7 @@ export default function Investments() {
     address: MOCHA_TREE_CONTRACT_ADDRESS,
     abi: MOCHA_TREE_CONTRACT_ABI,
     functionName: 'getActiveFarmIds',
-    chainId: scrollSepolia.id,
+    chainId: scroll.id,
   });
 
   // Batch fetch farm configurations
@@ -104,7 +104,7 @@ export default function Investments() {
         abi: MOCHA_TREE_CONTRACT_ABI,
         functionName: 'getFarmConfig',
         args: [farmId],
-        chainId: scrollSepolia.id,
+        chainId: scroll.id,
       }))
     : [];
 
@@ -119,7 +119,7 @@ export default function Investments() {
         abi: MOCHA_TREE_CONTRACT_ABI,
         functionName: 'balanceOf',
         args: [userAddress],
-        chainId: scrollSepolia.id,
+        chainId: scroll.id,
       }))
     : [];
 
@@ -133,7 +133,7 @@ export default function Investments() {
     abi: MBT_TOKEN_ABI,
     functionName: 'balanceOf',
     args: [userAddress],
-    chainId: scrollSepolia.id,
+    chainId: scroll.id,
     query: { enabled: isConnected },
   });
 

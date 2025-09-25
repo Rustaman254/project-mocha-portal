@@ -27,7 +27,7 @@ const modal = createAppKit({
   adapters: [wagmiAdapter],
   projectId,
   networks: [scroll, scrollSepolia],
-  defaultNetwork: scrollSepolia,
+  defaultNetwork: scroll,
   metadata: metadata,
   features: {
     analytics: true 
