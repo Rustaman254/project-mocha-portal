@@ -1,6 +1,6 @@
 // lib/config.ts
 import { createConfig, http } from 'wagmi';
-import { scroll, scrollSepolia } from 'wagmi/chains';
+import { scroll } from 'wagmi/chains';
 import type { ContractAddresses } from "./types"
 
 export const CONTRACT_ADDRESSES: ContractAddresses = {
