@@ -5,9 +5,9 @@ import type { ContractAddresses } from "./types"
 
 export const CONTRACT_ADDRESSES: ContractAddresses = {
   // Main Vault System Contracts
-  mttrVault: "0x9954EBb3B6aa9992f86663B6C5e183d83Cf99591", // MochaTreeRightsToken (ERC4626 Vault)
+  mttrVault: "0x3BE94b5CcfDd92bBE2e08E43D01900F36eeB3100", // MochaTreeRightsToken (ERC4626 Vault)
   diamond: "0x31058580845A8ed67F404fF5863b30f1b8CF7412", // TreeFarmDiamond (Main Diamond)
-  mbtToken: "0x2133f731449A73b772dda06b0cA03c9Efda6a359", // MochaBeanToken (ERC20) ✅ VERIFIED
+  mbtToken: "0xA5ea95B787629Feb727D25A7c6bFb01f0eE2cBD1", // MochaBeanToken (ERC20) ✅ VERIFIED
   mltToken: "0x53815508558bF029ecBE190A4631876783ac27e6", // MochaLandToken (ERC721)
   mttToken: "0x52cEf0a50A38AD9468C5fde0292E7c2FbB0AaDb5", // MochaTreeToken (ERC6960)
   
