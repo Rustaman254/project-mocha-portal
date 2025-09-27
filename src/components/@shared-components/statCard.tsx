@@ -10,7 +10,6 @@ interface StatCardProps {
   iconColor?: 'green' | 'red' | 'yellow';
   icon?: IconName;
   compact?: boolean;
-  // New optional props for the enhanced design
   trend?: {
     value: string;
     isPositive: boolean;
@@ -19,6 +18,18 @@ interface StatCardProps {
   footerLine2?: string;
   footerIcon?: React.ReactNode;
 }
+
+// Formatter for value: 2 to 3 decimals, rounded if needed
+const formatValue = (val: string | number): string => {
+  if (typeof val === 'number') {
+    // Always show at least 2 and up to 3 decimals, rounded
+    return Number(val).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 3,
+    });
+  }
+  return val;
+};
 
 const StatCard: React.FC<StatCardProps> = ({
   title,
@@ -94,7 +105,7 @@ const StatCard: React.FC<StatCardProps> = ({
           {isLoading ? (
             <span className="text-gray-400 dark:text-gray-500">...</span>
           ) : (
-            value
+            formatValue(value)
           )}
         </div>
       </div>
