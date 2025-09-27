@@ -1,7 +1,7 @@
 TreeFarm System Deployment Summary
 =====================================
 Deployed at: 2025-08-11T14:57:19.983Z
-Network: scrollSepolia (Chain ID: 534351)
+Network: scroll (Chain ID: 534351)
 Deployer: 0xf4BEEAa146ddEA7B42F36C8b8cdFd57cc2BbD5Fa
 
 NOTE: FarmShareToken contracts are NOT deployed at this stage.
@@ -60,4 +60,4 @@ System Initialized: true
 Vault Initialized: true
 
 💡 To update token addresses, use:
-   npx hardhat run scripts/update-diamond-token-addresses.js --network scrollSepolia --show-current
+   npx hardhat run scripts/update-diamond-token-addresses.js --network scroll --show-current

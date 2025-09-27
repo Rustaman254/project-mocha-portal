@@ -22,7 +22,7 @@ interface InvestTreesDialogProps {
 }
 
 type SupportedToken = {
-  label: "ETH" | "USDC" | "USDT" | "SCROLL";
+  label: "ETH" | "USDC" | "USDT" | "scroll";
   paymentMethod: string;
   decimals: number;
   contractFunc: string;
@@ -34,7 +34,7 @@ const supportedTokens: SupportedToken[] = [
   { label: "ETH", paymentMethod: "ETH", decimals: 18, contractFunc: "buyTokensWithEth", needsValue: true },
   { label: "USDC", paymentMethod: "USDC", decimals: 6, contractFunc: "buyTokensWithUsdc", needsValue: false, tokenAddress: "0x8142c0..." },
   { label: "USDT", paymentMethod: "USDT", decimals: 6, contractFunc: "buyTokensWithUsdt", needsValue: false, tokenAddress: "0xD078a..." },
-  { label: "SCROLL", paymentMethod: "SCR", decimals: 18, contractFunc: "buyTokensWithScr", needsValue: false, tokenAddress: "0xDEdB..." },
+  { label: "scroll", paymentMethod: "SCR", decimals: 18, contractFunc: "buyTokensWithScr", needsValue: false, tokenAddress: "0xDEdB..." },
 ];
 
 const BONDPRICEUSD = 100;

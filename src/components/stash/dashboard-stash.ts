@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { useAccount, useReadContract, useReadContracts, useWriteContract, useBalance, usePublicClient, useWatchContractEvent } from "wagmi"
 import { formatEther, parseUnits, formatUnits } from "viem"
-import { scrollSepolia } from "viem/chains"
+import { scroll } from "viem/chains"
 import Header from "@/components/@shared-components/header"
 import StatCard from "@/components/@shared-components/statCard"
 import { TREE_CONTRACT_ABI, TREE_CONTRACT_ADDRESS, MBT_ADDRESS, eventsAbi } from "@/config/constants"
@@ -80,7 +80,7 @@ const MBT_TOKEN_ABI = [
 
 export default function Dashboard() {
   const { address: userAddress, isConnected } = useAccount()
-  const publicClient = usePublicClient({ chainId: scrollSepolia.id });
+  const publicClient = usePublicClient({ chainId: scroll.id });
   const [sortBy, setSortBy] = useState("name")
   const [sortOrder, setSortOrder] = useState("asc")
   const [searchQuery, setSearchQuery] = useState("")
@@ -108,7 +108,7 @@ export default function Dashboard() {
     address: MOCHA_TREE_CONTRACT_ADDRESS,
     abi: MOCHA_TREE_CONTRACT_ABI,
     functionName: 'getActiveFarmIds',
-    chainId: scrollSepolia.id,
+    chainId: scroll.id,
   });
 
   // Batch fetch farm configurations
@@ -118,7 +118,7 @@ export default function Dashboard() {
       abi: MOCHA_TREE_CONTRACT_ABI,
       functionName: 'getFarmConfig',
       args: [farmId],
-      chainId: scrollSepolia.id,
+      chainId: scroll.id,
     }))
     : [];
 
@@ -133,7 +133,7 @@ export default function Dashboard() {
       abi: MOCHA_TREE_CONTRACT_ABI,
       functionName: 'balanceOf',
       args: [userAddress],
-      chainId: scrollSepolia.id,
+      chainId: scroll.id,
     }))
     : [];
 
@@ -147,7 +147,7 @@ export default function Dashboard() {
     abi: MBT_TOKEN_ABI,
     functionName: 'balanceOf',
     args: [userAddress],
-    chainId: scrollSepolia.id,
+    chainId: scroll.id,
     query: { enabled: isConnected },
   });
 
@@ -156,7 +156,7 @@ export default function Dashboard() {
     abi: MBT_TOKEN_ABI,
     functionName: 'allowance',
     args: [userAddress, MOCHA_TREE_CONTRACT_ADDRESS],
-    chainId: scrollSepolia.id,
+    chainId: scroll.id,
     query: { enabled: isConnected },
   });
 
@@ -173,7 +173,7 @@ export default function Dashboard() {
         }
       ],
       functionName: "totalSupply",
-      chainId: scrollSepolia.id,
+      chainId: scroll.id,
     }))
     : [];
 

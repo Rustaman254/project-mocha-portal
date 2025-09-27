@@ -14,7 +14,7 @@ import {
 import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
 
 type SupportedToken = {
-  label: "ETH" | "USDC" | "USDT" | "SCROLL" | "WBTC";
+  label: "ETH" | "USDC" | "USDT" | "scroll" | "WBTC";
   paymentMethod: string;
   decimals: number;
   contractFunc: "buyTokensWithEth" | "buyTokensWithUsdc" | "buyTokensWithUsdt" | "buyTokensWithScr" | "buyTokensWithWbtc";
@@ -123,7 +123,7 @@ export function SwapToMBTComponent() {
   if (selected.label === "ETH") {
     swapArgs = [address, tokensToReceive];
     swapValue = formattedAmount;
-  } else if (selected.label === "USDC" || selected.label === "USDT" || selected.label === "SCROLL" || selected.label === "WBTC") {
+  } else if (selected.label === "USDC" || selected.label === "USDT" || selected.label === "scroll" || selected.label === "WBTC") {
     swapArgs = [formattedAmount, tokensToReceive];
   }
 
@@ -170,7 +170,7 @@ export function SwapToMBTComponent() {
       minValue = formatUnits(minUsdt, 6);
     } else if (selected.label === "USDC" && minUsdc) {
       minValue = formatUnits(minUsdc, 6);
-    } else if (selected.label === "SCROLL" && minScr) {
+    } else if (selected.label === "scroll" && minScr) {
       minValue = formatUnits(minScr, 18);
     }
     setAmount(minValue);
