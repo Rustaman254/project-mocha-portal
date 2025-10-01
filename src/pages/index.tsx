@@ -20,6 +20,7 @@ import { FarmsTable } from "@/components/@shared-components/FarmsTable"
 import { ChartLineDefault } from "@/components/@shared-components/charts/chart-line"
 import { ChartRadialShape } from "@/components/@shared-components/charts/chat-radial"
 import { SwapToMBTComponent } from "@/components/@shared-components/swapToMBT"
+import { useNextStep } from 'nextstepjs';
 
 const MOCHA_TREE_CONTRACT_ADDRESS = TREE_CONTRACT_ADDRESS;
 const MOCHA_TREE_CONTRACT_ABI = TREE_CONTRACT_ABI;
@@ -28,6 +29,7 @@ const BOND_PRICE_USD = 100;
 const MBT_PRICE_USD = 25;
 const BOND_MBT = BOND_PRICE_USD / MBT_PRICE_USD; // 4 MBT per full Tree
 const MBT_DECIMALS = 18;
+const TOUR_KEY = "mainTourCompleted";
 
 // MBT Token ABI
 const MBT_TOKEN_ABI = [
@@ -78,6 +80,7 @@ const MBT_TOKEN_ABI = [
 ] as const;
 
 export default function Dashboard() {
+  const { startNextStep } = useNextStep();
   const { address: userAddress, isConnected } = useAccount()
   const publicClient = usePublicClient({ chainId: scroll.id });
   const [sortBy, setSortBy] = useState("name")
@@ -169,7 +172,7 @@ export default function Dashboard() {
     : [];
 
   const firstAvailableFarm = farms.find(
-    (    farm: { config: { active: any; treeCount: number } }) => farm.config?.active && farm.config?.treeCount > 0
+    (farm: { config: { active: any; treeCount: number } }) => farm.config?.active && farm.config?.treeCount > 0
   );
 
   console.log("First available farm:", firstAvailableFarm);
@@ -543,11 +546,18 @@ export default function Dashboard() {
     setPurchaseError("");
   };
 
+  useEffect(() => {
+    if (typeof window !== "undefined" && !localStorage.getItem(TOUR_KEY)) {
+      startNextStep("mainTour");
+    }
+  }, [startNextStep]);
+
   // Farm name map
   const farmNameMap = new Map(farms.map((farm: { farmId: { toString: () => any }; config: { name: any } }) => [farm.farmId.toString(), farm.config?.name || 'Unknown']))
 
   return (
     <div className="min-h-screen bg-[#E6E6E6] dark:bg-gray-900 transition-colors duration-200 text-gray-900 dark:text-white">
+      {/* <button onClick={() => startNextStep("mainTour")} className="z-[9999] cursor-pointer">Start Tour</button>; */}
       <Toaster richColors position="bottom-right" />
       <Header />
       <div className="pt-[72px]">
@@ -705,8 +715,10 @@ export default function Dashboard() {
 
             {/* Right Column (Quick Actions) - Sticky */}
             <div className="lg:col-span-1 sticky top-[72px] self-start">
-              <SwapToMBTComponent />
-              
+              <div id="SwapToMbt">
+                <SwapToMBTComponent />
+              </div>
+
               <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 space-y-6 border dark:border-gray-700">
                 <div className="flex justify-between items-center">
                   <div className="text-xs font-medium text-gray-500 dark:text-gray-400">QUICK ACTIONS</div>
@@ -731,6 +743,7 @@ export default function Dashboard() {
                 </div>
 
                 <Button
+                  id="InvestNowButton"
                   className="w-full bg-[#522912] rounded-full hover:bg-[#6A4A36] text-white"
                   onClick={handleQuickBuyClick}
                 >
@@ -843,12 +856,12 @@ export default function Dashboard() {
                   <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Tree Cost:</span>
-                          <span className="text-sm text-gray-700 dark:text-gray-200">{BOND_MBT} MBT per Tree ( ${ BOND_MBT*25})</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-200">{BOND_MBT} MBT per Tree ( ${BOND_MBT * 25})</span>
                     </div>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Total MBT Cost:</span>
                       <span className="text-sm font-bold text-gray-900 dark:text-white">
-                        {mbtAmountNum.toFixed(2)} MBT ( ${ mbtAmountNum*25})
+                        {mbtAmountNum.toFixed(2)} MBT ( ${mbtAmountNum * 25})
                       </span>
                     </div>
                     <div className="flex justify-between items-center mb-2">
@@ -857,7 +870,7 @@ export default function Dashboard() {
                         {bondCount.toFixed(2)} trees
                       </span>
                     </div>
-                   {/*  <div className="flex justify-between items-center">
+                    {/*  <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-gray-600 dark:text-gray-300">USD Equivalent:</span>
                       <span className="text-sm text-gray-700 dark:text-gray-200">
                         ${(mbtAmountNum * MBT_PRICE_USD).toLocaleString()}
