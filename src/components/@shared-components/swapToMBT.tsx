@@ -54,7 +54,7 @@ const supportedTokens: SupportedToken[] = [
     needsValue: false,
     tokenAddress: "0xd29687c813D741E2F938F4aC377128810E217b1b",
   },
-    {
+  {
     label: "WBTC",
     paymentMethod: "WBTC",
     decimals: 18,
@@ -64,17 +64,15 @@ const supportedTokens: SupportedToken[] = [
   },
 ];
 
-// Add rounding helpers for MBT and USD
-function roundToThree(num) {
+function roundToThree(num: any) {
   if (!num || isNaN(Number(num))) return "0.000";
   return (Math.round(Number(num) * 1000) / 1000).toFixed(3);
 }
-function roundToWhole(num) {
+function roundToWhole(num: any) {
   if (!num || isNaN(Number(num))) return "0";
   return Math.round(Number(num)).toString();
 }
-
-function roundToFour(value) {
+function roundToFour(value: any) {
   if (!value || isNaN(Number(value))) return "0";
   return (Math.round(Number(value) * 10000) / 10000).toFixed(4);
 }
@@ -87,13 +85,13 @@ export function SwapToMBTComponent() {
   const [showPreview, setShowPreview] = useState<boolean>(false);
   const { minEth, minUsdt, minUsdc, minScr } = useMinPurchases();
   const [result, setResult] = useState<string>("");
-
+  const [openPaymentInfo, setOpenPaymentInfo] = useState<"none" | "card" | "mpesa">("none");
+  const [notifyEmail, setNotifyEmail] = useState<string>("");
+  const [notifySent, setNotifySent] = useState<boolean>(false);
   const { address } = useAccount();
-
   const selected = supportedTokens.find((t) => t.label === fromToken)!;
   const roundedAmount = selected.label === "ETH" && amount ? roundToFour(amount) : amount;
   const formattedAmount = roundedAmount && Number(roundedAmount) > 0 ? parseUnits(roundedAmount, selected.decimals) : BigInt(0);
-
   const ethBalanceQuery = useBalance({
     address,
     query: {
@@ -107,17 +105,14 @@ export function SwapToMBTComponent() {
       enabled: selected.label !== "ETH" && !!address && !!selected.tokenAddress,
     }
   });
-
   const rawEthBalance = ethBalanceQuery.data?.formatted ?? "0";
   const tokenBalance: string =
     selected.label === "ETH"
       ? roundToFour(rawEthBalance)
       : erc20BalanceQuery.data?.formatted ?? "0";
-
   const { data: preview } = usePreviewTokenPurchase(selected.paymentMethod, formattedAmount);
   const [tokensToReceive, usdValue] = preview ?? [BigInt(0), BigInt(0)];
   const formattedUsdValue = Number(formatUnits(usdValue, 18));
-
   let swapArgs: any[] = [];
   let swapValue: bigint | undefined = undefined;
   if (selected.label === "ETH") {
@@ -126,7 +121,6 @@ export function SwapToMBTComponent() {
   } else if (selected.label === "USDC" || selected.label === "USDT" || selected.label === "scroll" || selected.label === "WBTC") {
     swapArgs = [formattedAmount, tokensToReceive];
   }
-
   const {
     swap,
     hash,
@@ -140,23 +134,18 @@ export function SwapToMBTComponent() {
     swapValue,
     selected.label !== "ETH" ? selected.tokenAddress : undefined
   );
-
-
-
   const withdrawalFee = 0.005;
   const txFee = 0.002;
   const totalFeePct = withdrawalFee + txFee;
   const feeUsd = formattedUsdValue * totalFeePct;
   const netUsd = formattedUsdValue - feeUsd;
-  // Use roundToWhole for net US Dollar
   const netUsdDisplay = netUsd > 0 ? roundToWhole(netUsd) : "0";
-
-  // Use roundToThree for MBT, roundToWhole for $ inside template
   const mbtDisplay =
     tokensToReceive && formattedAmount > BigInt(0)
       ? `${roundToThree(Number(formatUnits(tokensToReceive, 18)))} MBT ($${roundToWhole(formattedUsdValue)})`
       : "";
-
+  const SHRINK_FONT_LENGTH = 16;
+  const isLongValue = mbtDisplay && mbtDisplay.length > SHRINK_FONT_LENGTH;
   const handleSetMax = () => setAmount(selected.label === "ETH" ? roundToFour(tokenBalance) : tokenBalance.toString());
   const handleSetHalf = () =>
     setAmount(selected.label === "ETH"
@@ -175,8 +164,6 @@ export function SwapToMBTComponent() {
     }
     setAmount(minValue);
   };
-
-
   const handleSwap = (e: React.FormEvent) => {
     e.preventDefault();
     if (selected.label === "ETH" && amount) {
@@ -184,7 +171,6 @@ export function SwapToMBTComponent() {
     }
     setShowPreview(true);
   };
-
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = e.target.value;
     if (selected.label === "ETH" && value) {
@@ -195,7 +181,6 @@ export function SwapToMBTComponent() {
     }
     setAmount(value);
   };
-
   const handleConfirmSwap = async () => {
     setResult("");
     try {
@@ -213,7 +198,14 @@ export function SwapToMBTComponent() {
       setResult(message);
     }
   };
-
+  const handleNotify = () => {
+    if (notifyEmail && notifyEmail.includes("@")) {
+      setNotifySent(true);
+      toast.success("You'll be notified when this payment mode is live.", { duration: 6000 });
+    } else {
+      toast.error("Please enter a valid email.", { duration: 4000 });
+    }
+  };
   useEffect(() => {
     if (error) {
       toast.error(error.message || "Transaction error occurred.", {
@@ -221,7 +213,6 @@ export function SwapToMBTComponent() {
       });
     }
   }, [error]);
-
   return (
     <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-2 w-full">
       {!showPreview ? (
@@ -315,7 +306,10 @@ export function SwapToMBTComponent() {
               type="text"
               value={mbtDisplay}
               disabled
-              className="text-2xl bg-transparent border-none focus:outline-none text-gray-900 dark:text-white font-bold placeholder-gray-300 dark:placeholder-gray-500 px-0 select-none w-3/4"
+              className={`
+                ${isLongValue ? 'text-lg' : 'text-2xl'}
+                bg-transparent border-none focus:outline-none text-gray-900 dark:text-white font-bold placeholder-gray-300 dark:placeholder-gray-500 px-0 select-none w-3/4 transition-all duration-200
+              `}
             />
             <span className="ml-3 bg-gray-200 dark:bg-gray-800 text-[#522912] dark:text-amber-400 text-sm px-3 py-1 rounded-full whitespace-nowrap">
               MBT
@@ -329,7 +323,6 @@ export function SwapToMBTComponent() {
             <ArrowUpRight className="w-5 h-5 mr-2" />
             Preview Swap
           </Button>
-
         </form>
       ) : (
         <div>
@@ -347,13 +340,57 @@ export function SwapToMBTComponent() {
             <p>
               Value before fees: ${roundToWhole(formattedUsdValue)}
             </p>
-            <p>Withdrawal Fee: 0.5% | Transaction Fee: 0.2%</p>
             <p>
               <span className="font-semibold">
                 Net after fees: ${netUsdDisplay}
               </span>
             </p>
-            <p>Maturity Time: 7 days</p>
+          </div>
+          <div className="mb-4">
+            <div className="font-bold mb-1">Pay with (coming soon):</div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                className="rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white py-1 px-4"
+                onClick={() => setOpenPaymentInfo("card")}
+              >
+                Bank Card
+              </Button>
+              <Button
+                type="button"
+                className="rounded-full bg-green-100 dark:bg-green-700 text-green-900 dark:text-green-200 py-1 px-4"
+                onClick={() => setOpenPaymentInfo("mpesa")}
+              >
+                M-Pesa
+              </Button>
+            </div>
+            {openPaymentInfo !== "none" && (
+              <div className="mt-2 bg-yellow-50 dark:bg-yellow-900 p-2 rounded shadow-inner">
+                <div className="mb-2 text-yellow-800 dark:text-yellow-300">
+                  This feature is not yet available. Enter your email to get notified when live.
+                </div>
+                {notifySent ? (
+                  <span className="text-green-600 dark:text-green-300 font-semibold">Thank you, you'll be notified!</span>
+                ) : (
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="email"
+                      placeholder="your@email.com"
+                      value={notifyEmail}
+                      onChange={e => setNotifyEmail(e.target.value)}
+                      className="w-full py-1 px-2 rounded border border-gray-300 focus:outline-none dark:bg-gray-800 dark:border-gray-600"
+                    />
+                    <Button
+                      type="button"
+                      className="bg-amber-500 text-white px-4 py-1 rounded"
+                      onClick={handleNotify}
+                    >
+                      Notify Me
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <Button
             className="w-full bg-emerald-700 hover:bg-emerald-800 text-white py-3 text-sm"
