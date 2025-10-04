@@ -17,12 +17,11 @@ interface StatCardProps {
   footerLine1?: string;
   footerLine2?: string;
   footerIcon?: React.ReactNode;
+  id?: string; 
 }
 
-// Formatter for value: 2 to 3 decimals, rounded if needed
 const formatValue = (val: string | number): string => {
   if (typeof val === 'number') {
-    // Always show at least 2 and up to 3 decimals, rounded
     return Number(val).toLocaleString(undefined, {
       minimumFractionDigits: 2,
       maximumFractionDigits: 3,
@@ -42,6 +41,7 @@ const StatCard: React.FC<StatCardProps> = ({
   footerLine1,
   footerLine2,
   footerIcon,
+  id, 
 }) => {
   const colorStyles: Record<
     NonNullable<StatCardProps['iconColor']>,
@@ -75,12 +75,15 @@ const StatCard: React.FC<StatCardProps> = ({
   const IconComponent = icons[icon];
 
   return (
-    <div className={`
-      border dark:border-gray-800 rounded-lg 
-      ${compact ? 'p-2' : 'p-4'} 
-      bg-white dark:bg-gray-800
-      w-full h-full relative
-    `}>
+    <div
+      id={id} // <-- Assign the id to the root div
+      className={`
+        border dark:border-gray-800 rounded-lg 
+        ${compact ? 'p-2' : 'p-4'} 
+        bg-white dark:bg-gray-800
+        w-full h-full relative
+      `}
+    >
       {/* Trend badge in top right corner */}
       {trend && (
         <div className={`absolute top-3 right-3 inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${selectedStyle.badge}`}>
@@ -92,7 +95,7 @@ const StatCard: React.FC<StatCardProps> = ({
           {trend.value}
         </div>
       )}
-      
+
       {/* Header section */}
       <div className="mb-4">
         <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">

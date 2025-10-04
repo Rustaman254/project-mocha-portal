@@ -23,12 +23,63 @@ const steps = [
         ),
         content: (
           <span style={{ color: "#18181b", background: "#fff", fontWeight: 600 }}>
-            Welcome to our dashboard! Let's take a quick tour to get you started.
+            Welcome to your dashboard! We'll guide you through the main investment features.
           </span>
         ),
         showControls: true,
         showSkip: true,
         side: "center"
+      },
+      {
+        icon: "📈",
+        title: (
+          <span style={{ color: "#fff", background: "#18181b", padding: "0.25em 0.5em", borderRadius: "4px" }}>
+            Locked MBTs
+          </span>
+        ),
+        content: (
+          <span style={{ color: "#18181b", background: "#fff", fontWeight: 600 }}>
+            See how many MBT tokens are currently staked in Trees. This is your total MBT investment balance that's locked and earning returns.
+          </span>
+        ),
+        selector: "#statcard-locked-mbts",
+        side: "right",
+        showControls: true,
+        showSkip: true
+      },
+      {
+        icon: "💰",
+        title: (
+          <span style={{ color: "#fff", background: "#18181b", padding: "0.25em 0.5em", borderRadius: "4px" }}>
+            Available MBTs
+          </span>
+        ),
+        content: (
+          <span style={{ color: "#18181b", background: "#fff", fontWeight: 600 }}>
+            This shows your estimated yearly MBT yield at current rates. It helps you forecast your passive earnings from your investments.
+          </span>
+        ),
+        selector: "#statcard-available-mbts",
+        side: "right",
+        showControls: true,
+        showSkip: true
+      },
+      {
+        icon: "🔮",
+        title: (
+          <span style={{ color: "#fff", background: "#18181b", padding: "0.25em 0.5em", borderRadius: "4px" }}>
+            MBTs Cumulative Return
+          </span>
+        ),
+        content: (
+          <span style={{ color: "#18181b", background: "#fff", fontWeight: 600 }}>
+            Get a 5-year projection of your total MBT returns if you hold your current investments. This forecast assumes today's yield rates and compounding returns.
+          </span>
+        ),
+        selector: "#statcard-cumulative-return",
+        side: "right",
+        showControls: true,
+        showSkip: true
       },
       {
         icon: "💱",
@@ -39,7 +90,7 @@ const steps = [
         ),
         content: (
           <span style={{ color: "#18181b", background: "#fff", fontWeight: 600 }}>
-            Use this section to swap tokens for MBT, which is needed to invest.
+            Use this panel to exchange tokens for MBT tokens, so you can invest or top up your dashboard balance.
           </span>
         ),
         selector: "#SwapToMbt",
@@ -48,7 +99,7 @@ const steps = [
         showSkip: true
       },
       {
-        icon: "💸",
+        icon: "🌱",
         title: (
           <span style={{ color: "#fff", background: "#18181b", padding: "0.25em 0.5em", borderRadius: "4px" }}>
             Invest Now
@@ -56,7 +107,7 @@ const steps = [
         ),
         content: (
           <span style={{ color: "#18181b", background: "#fff", fontWeight: 600 }}>
-            Click on this button to start investing in Trees with your MBT tokens.
+            Click here to invest your MBT tokens into new Trees and grow your asset portfolio.
           </span>
         ),
         selector: "#InvestNowButton",
@@ -68,10 +119,11 @@ const steps = [
   }
 ];
 
+
 function MyApp({ Component, pageProps, cookie }: AppProps & { cookie: string | null }) {
   return (
     <NextStepProvider>
-      <NextStep steps={steps} onClose={handleTourClose} shadowRgb="0,0,0" shadowOpacity={0.8}>
+      <NextStep steps={steps} onEnd={handleTourClose}  onClose={handleTourClose} shadowRgb="0,0,0" shadowOpacity={0.8}>
         <ContextProvider cookies={cookie}>
           <Component {...pageProps} />
         </ContextProvider>

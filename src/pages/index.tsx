@@ -577,6 +577,15 @@ export default function Dashboard() {
                 {statCards.map((card, index) => (
                   <StatCard
                     key={index}
+                    id={
+                      card.title === "Locked MBTs"
+                        ? "statcard-locked-mbts"
+                        : card.title === "Available MBTs"
+                          ? "statcard-available-mbts"
+                          : card.title === "MBTs Cumulative Return"
+                            ? "statcard-cumulative-return"
+                            : undefined
+                    }
                     title={card.title}
                     value={card.value}
                     isLoading={card.isLoading}
@@ -586,7 +595,8 @@ export default function Dashboard() {
                     footerLine1={card.footerLine1}
                     footerLine2={card.footerLine2}
                   />
-                ))}
+                ))
+                }
               </div>
 
               {/* Tabs for Trees and Transactions */}
