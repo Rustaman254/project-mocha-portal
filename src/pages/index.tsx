@@ -628,7 +628,7 @@ export default function Dashboard() {
                       </div>
                     ) : farms.filter(({ balance }) => balance > 0).length === 0 ? (
                       <div className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
-                        No Trees yet. <Link href="/marketplace" className="text-[#7A5540] dark:text-amber-600 hover:underline">Buy Trees</Link>
+                        No Trees yet. <button onClick={handleQuickBuyClick} className="text-[#7A5540] dark:text-amber-600 hover:underline">Buy Trees</button>
                       </div>
                     ) : (
                       <FarmsTable
