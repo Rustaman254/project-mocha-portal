@@ -302,16 +302,6 @@ export default function Dashboard() {
     await refetchAllowance();
   };
 
-  // Handle wallet connection
-  const handleConnectWallet = () => {
-    if (typeof (window as any).openfort !== 'undefined') {
-      (window as any).openfort.connect();
-    } else {
-      console.error("Openfort SDK not loaded");
-      setPurchaseError("Wallet connection failed. Please try again.");
-    }
-  };
-
   // Handle buy more click (from table)
   const handleBuyMoreClick = (farmId: string, farmName: string, minInvestment: bigint) => {
     if (!isConnected) {
@@ -787,12 +777,6 @@ export default function Dashboard() {
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                     Please connect your wallet to purchase Trees.
                   </p>
-                  <Button
-                    className="bg-[#7A5540] hover:bg-[#6A4A36] text-white border-none"
-                    onClick={handleConnectWallet}
-                  >
-                    Connect Wallet
-                  </Button>
                 </div>
               ) : purchaseSuccessDetails ? (
                 <div className="text-center py-8">
