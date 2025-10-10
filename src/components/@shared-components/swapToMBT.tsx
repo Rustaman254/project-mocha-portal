@@ -13,16 +13,7 @@ import {
 } from "@/components/ui/select";
 import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
 
-type SupportedToken = {
-  label: "ETH" | "USDC" | "USDT" | "scroll" | "WBTC";
-  paymentMethod: string;
-  decimals: number;
-  contractFunc: "buyTokensWithEth" | "buyTokensWithUsdc" | "buyTokensWithUsdt" | "buyTokensWithScr" | "buyTokensWithWbtc";
-  needsValue: boolean;
-  tokenAddress?: `0x${string}`;
-};
-
-const supportedTokens: SupportedToken[] = [
+const supportedTokens = [
   {
     label: "ETH",
     paymentMethod: "ETH",
@@ -57,7 +48,7 @@ const supportedTokens: SupportedToken[] = [
   {
     label: "WBTC",
     paymentMethod: "WBTC",
-    decimals: 18,
+    decimals: 8,
     contractFunc: "buyTokensWithWbtc",
     needsValue: false,
     tokenAddress: "0xd29687c813D741E2F938F4aC377128810E217b1b",
@@ -80,7 +71,7 @@ function roundToFour(value: any) {
 const USD_DECIMALS = 6;
 
 export function SwapToMBTComponent() {
-  const [fromToken, setFromToken] = useState<SupportedToken["label"]>(supportedTokens[0].label);
+  const [fromToken, setFromToken] = useState(supportedTokens[0].label);
   const [amount, setAmount] = useState<string>("");
   const [showPreview, setShowPreview] = useState<boolean>(false);
   const { minEth, minUsdt, minUsdc, minScr } = useMinPurchases();
@@ -89,38 +80,75 @@ export function SwapToMBTComponent() {
   const [notifyEmail, setNotifyEmail] = useState<string>("");
   const [notifySent, setNotifySent] = useState<boolean>(false);
   const { address } = useAccount();
-  const selected = supportedTokens.find((t) => t.label === fromToken)!;
-  const roundedAmount = selected.label === "ETH" && amount ? roundToFour(amount) : amount;
-  const formattedAmount = roundedAmount && Number(roundedAmount) > 0 ? parseUnits(roundedAmount, selected.decimals) : BigInt(0);
+
+  const selected = supportedTokens.find((t) => t.label === fromToken);
+  if (!selected) return <div>Unsupported token selected</div>;
+
+  // --- Fully explicit formattedAmount ---
+  let roundedAmount: string = "";
+  if (selected.label === "ETH" && amount) {
+    roundedAmount = roundToFour(amount);
+  } else if (amount) {
+    roundedAmount = amount;
+  }
+  let formattedAmount: bigint = BigInt(0);
+  try {
+    formattedAmount =
+      roundedAmount && Number(roundedAmount) > 0
+        ? parseUnits(roundedAmount, selected.decimals)
+        : BigInt(0);
+  } catch (e) {
+    formattedAmount = BigInt(0);
+  }
+
+  // --- Balances ---
   const ethBalanceQuery = useBalance({
     address,
-    query: {
-      enabled: selected.label === "ETH" && !!address,
-    }
+    query: { enabled: selected.label === "ETH" && !!address },
   });
   const erc20BalanceQuery = useBalance({
     address,
     token: selected.tokenAddress,
     query: {
       enabled: selected.label !== "ETH" && !!address && !!selected.tokenAddress,
-    }
+    },
   });
   const rawEthBalance = ethBalanceQuery.data?.formatted ?? "0";
-  const tokenBalance: string =
+  const tokenBalance =
     selected.label === "ETH"
       ? roundToFour(rawEthBalance)
       : erc20BalanceQuery.data?.formatted ?? "0";
-  const { data: preview } = usePreviewTokenPurchase(selected.paymentMethod, formattedAmount);
-  const [tokensToReceive, usdValue] = preview ?? [BigInt(0), BigInt(0)];
+
+  // --- Preview ---
+  const { data: preview } = usePreviewTokenPurchase(
+    selected.paymentMethod,
+    formattedAmount
+  );
+  // --- never let tokensToReceive be undefined ---
+  const [tokensToReceiveRaw, usdValueRaw] = preview ?? [BigInt(0), BigInt(0)];
+  const tokensToReceive = tokensToReceiveRaw !== undefined ? tokensToReceiveRaw : BigInt(0);
+  const usdValue = usdValueRaw !== undefined ? usdValueRaw : BigInt(0);
   const formattedUsdValue = Number(formatUnits(usdValue, 18));
+
+  // --- Args construction with full checks for contract expectations ---
+  const isValidAmount =
+    formattedAmount !== undefined && formattedAmount > BigInt(0);
+  const isValidTokensToReceive =
+    tokensToReceive !== undefined && tokensToReceive >= BigInt(0);
+
   let swapArgs: any[] = [];
   let swapValue: bigint | undefined = undefined;
   if (selected.label === "ETH") {
-    swapArgs = [address, tokensToReceive];
-    swapValue = formattedAmount;
-  } else if (selected.label === "USDC" || selected.label === "USDT" || selected.label === "scroll" || selected.label === "WBTC") {
-    swapArgs = [formattedAmount, tokensToReceive];
+    swapArgs = [address, isValidTokensToReceive ? tokensToReceive : BigInt(0)];
+    swapValue = isValidAmount ? formattedAmount : BigInt(0);
+  } else {
+    swapArgs = [
+      isValidAmount ? formattedAmount : BigInt(0),
+      isValidTokensToReceive ? tokensToReceive : BigInt(0),
+    ];
   }
+
+  // --- Swap hook ---
   const {
     swap,
     hash,
@@ -134,6 +162,8 @@ export function SwapToMBTComponent() {
     swapValue,
     selected.label !== "ETH" ? selected.tokenAddress : undefined
   );
+
+  // --- Fees ---
   const withdrawalFee = 0.005;
   const txFee = 0.002;
   const totalFeePct = withdrawalFee + txFee;
@@ -141,17 +171,24 @@ export function SwapToMBTComponent() {
   const netUsd = formattedUsdValue - feeUsd;
   const netUsdDisplay = netUsd > 0 ? roundToWhole(netUsd) : "0";
   const mbtDisplay =
-    tokensToReceive && formattedAmount > BigInt(0)
+    tokensToReceive && isValidAmount
       ? `${roundToThree(Number(formatUnits(tokensToReceive, 18)))} MBT ($${roundToWhole(formattedUsdValue)})`
       : "";
   const SHRINK_FONT_LENGTH = 16;
   const isLongValue = mbtDisplay && mbtDisplay.length > SHRINK_FONT_LENGTH;
-  const handleSetMax = () => setAmount(selected.label === "ETH" ? roundToFour(tokenBalance) : tokenBalance.toString());
-  const handleSetHalf = () =>
-    setAmount(selected.label === "ETH"
-      ? roundToFour(parseFloat(tokenBalance) * 0.5)
-      : (parseFloat(tokenBalance) * 0.5).toString());
-  const handleSetMin = () => {
+
+  // --- Handlers (all explicit) ---
+  function handleSetMax() {
+    setAmount(selected.label === "ETH" ? roundToFour(tokenBalance) : tokenBalance.toString());
+  }
+  function handleSetHalf() {
+    setAmount(
+      selected.label === "ETH"
+        ? roundToFour(parseFloat(tokenBalance) * 0.5)
+        : (parseFloat(tokenBalance) * 0.5).toString()
+    );
+  }
+  function handleSetMin() {
     let minValue = "1";
     if (selected.label === "ETH" && minEth) {
       minValue = roundToFour(formatUnits(minEth, 18));
@@ -159,19 +196,19 @@ export function SwapToMBTComponent() {
       minValue = formatUnits(minUsdt, 6);
     } else if (selected.label === "USDC" && minUsdc) {
       minValue = formatUnits(minUsdc, 6);
-    } else if (selected.label === "scroll" && minScr) {
+    } else if (selected.label === "SCROLL" && minScr) {
       minValue = formatUnits(minScr, 18);
     }
     setAmount(minValue);
-  };
-  const handleSwap = (e: React.FormEvent) => {
+  }
+  function handleSwap(e: React.FormEvent) {
     e.preventDefault();
     if (selected.label === "ETH" && amount) {
       setAmount(roundToFour(amount));
     }
     setShowPreview(true);
-  };
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  }
+  function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
     let value = e.target.value;
     if (selected.label === "ETH" && value) {
       const parts = value.split(".");
@@ -180,9 +217,16 @@ export function SwapToMBTComponent() {
       }
     }
     setAmount(value);
-  };
-  const handleConfirmSwap = async () => {
+  }
+  async function handleConfirmSwap() {
     setResult("");
+    // Extra log for debug
+    console.log({
+      swapArgs,
+      formattedAmount: String(formattedAmount),
+      tokensToReceive: String(tokensToReceive),
+      selectedLabel: selected.label,
+    });
     try {
       await swap();
     } catch (err) {
@@ -197,15 +241,16 @@ export function SwapToMBTComponent() {
       toast.error(message, { duration: 6000 });
       setResult(message);
     }
-  };
-  const handleNotify = () => {
+  }
+  function handleNotify() {
     if (notifyEmail && notifyEmail.includes("@")) {
       setNotifySent(true);
       toast.success("You'll be notified when this payment mode is live.", { duration: 6000 });
     } else {
       toast.error("Please enter a valid email.", { duration: 4000 });
     }
-  };
+  }
+
   useEffect(() => {
     if (error) {
       toast.error(error.message || "Transaction error occurred.", {
@@ -213,6 +258,8 @@ export function SwapToMBTComponent() {
       });
     }
   }, [error]);
+
+  // --- Main render (unchanged display, disables as needed) ---
   return (
     <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-2 w-full">
       {!showPreview ? (
@@ -222,7 +269,9 @@ export function SwapToMBTComponent() {
               Swap to MBT{" "}
             </h2>
           </div>
-          <p className="text-brown-100 font-bold text-xs">Step 1: Acquire the Mocha Bean Token (MBT) to invest in our trees</p>
+          <p className="text-brown-100 font-bold text-xs">
+            Step 1: Acquire the Mocha Bean Token (MBT) to invest in our trees
+          </p>
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-1">
               <ArrowUpRight className="h-4 w-4 text-amber-600 dark:text-amber-400 mr-1" />
@@ -246,9 +295,7 @@ export function SwapToMBTComponent() {
             />
             <div className="ml-3 w-1/4 flex items-center">
               <Select
-                onValueChange={(value) =>
-                  setFromToken(value as SupportedToken["label"])
-                }
+                onValueChange={(value) => setFromToken(value)}
                 defaultValue={supportedTokens[0].label}
               >
                 <SelectTrigger className="w-full bg-gray-100 dark:bg-gray-800 border-none rounded-full px-4 py-2 flex items-center text-sm shadow-none h-auto focus:ring-2 focus:ring-amber-600">
@@ -317,7 +364,12 @@ export function SwapToMBTComponent() {
           </div>
           <Button
             className="w-full bg-[#522912] rounded-full hover:bg-[#6A4A36] text-white py-3 text-sm flex items-center justify-center gap-2"
-            disabled={!amount || !address}
+            disabled={
+              !amount ||
+              !address ||
+              !isValidAmount ||
+              !isValidTokensToReceive
+            }
             type="submit"
           >
             <ArrowUpRight className="w-5 h-5 mr-2" />
@@ -370,7 +422,9 @@ export function SwapToMBTComponent() {
                   This feature is not yet available. Enter your email to get notified when live.
                 </div>
                 {notifySent ? (
-                  <span className="text-green-600 dark:text-green-300 font-semibold">Thank you, you'll be notified!</span>
+                  <span className="text-green-600 dark:text-green-300 font-semibold">
+                    Thank you, you'll be notified!
+                  </span>
                 ) : (
                   <div className="flex flex-col sm:flex-row gap-2">
                     <input
@@ -394,7 +448,12 @@ export function SwapToMBTComponent() {
           </div>
           <Button
             className="w-full bg-emerald-700 hover:bg-emerald-800 text-white py-3 text-sm"
-            disabled={isPending || isConfirming}
+            disabled={
+              isPending ||
+              isConfirming ||
+              !isValidAmount ||
+              !isValidTokensToReceive
+            }
             onClick={handleConfirmSwap}
           >
             {isPending || isConfirming ? "Processing..." : "Complete Purchase"}

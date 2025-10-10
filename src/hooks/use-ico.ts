@@ -1,25 +1,31 @@
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { ICO_ADDRESS, ICO_ABI } from '@/config/constants';
-
 function usePreviewTokenPurchase(paymentMethod: string, amount: bigint) {
-  // Wagmi hook
+  // Only enable if both params valid
+  const enabled =
+    typeof paymentMethod === "string" &&
+    paymentMethod.length > 0 &&
+    amount !== undefined &&
+    amount > BigInt(0);
+
+  const hookArgs = enabled ? [paymentMethod, amount] : undefined;
+  
   const result = useReadContract({
     address: ICO_ADDRESS,
     abi: ICO_ABI,
     functionName: "previewTokenPurchase",
-    args: [paymentMethod, amount],
-    query: {
-      enabled: !!paymentMethod && amount > BigInt(0),
-    },
+    args: Array.isArray(hookArgs) ? hookArgs : [], 
+    query: { enabled },
   });
 
   return {
     ...result,
     data: Array.isArray(result.data) && result.data.length === 2
-      ? result.data as [bigint, bigint]
+      ? (result.data as [bigint, bigint])
       : [BigInt(0), BigInt(0)] as [bigint, bigint],
   };
 }
+
 
 // Minimal ERC20 ABI for approval and balance checks
 const ERC20_MIN_ABI = [
