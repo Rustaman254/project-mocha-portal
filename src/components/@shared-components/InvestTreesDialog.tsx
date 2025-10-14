@@ -32,9 +32,9 @@ type SupportedToken = {
 
 const supportedTokens: SupportedToken[] = [
   { label: "ETH", paymentMethod: "ETH", decimals: 18, contractFunc: "buyTokensWithEth", needsValue: true },
-  { label: "USDC", paymentMethod: "USDC", decimals: 6, contractFunc: "buyTokensWithUsdc", needsValue: false, tokenAddress: "0x8142c0..." },
-  { label: "USDT", paymentMethod: "USDT", decimals: 6, contractFunc: "buyTokensWithUsdt", needsValue: false, tokenAddress: "0xD078a..." },
-  { label: "scroll", paymentMethod: "SCR", decimals: 18, contractFunc: "buyTokensWithScr", needsValue: false, tokenAddress: "0xDEdB..." },
+  { label: "USDC", paymentMethod: "USDC", decimals: 6, contractFunc: "buyTokensWithUsdc", needsValue: false, tokenAddress: "0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4" },
+  { label: "USDT", paymentMethod: "USDT", decimals: 6, contractFunc: "buyTokensWithUsdt", needsValue: false, tokenAddress: "0x3C1BCa5a656e69edCD0D4E36BEbb3FcDAcA60Cf1" },
+  { label: "scroll", paymentMethod: "SCR", decimals: 18, contractFunc: "buyTokensWithScr", needsValue: false, tokenAddress: "0xd29687c813D741E2F938F4aC377128810E217b1b" },
 ];
 
 const BONDPRICEUSD = 100;

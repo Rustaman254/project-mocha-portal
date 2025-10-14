@@ -27,7 +27,7 @@ const supportedTokens = [
     decimals: 6,
     contractFunc: "buyTokensWithUsdc",
     needsValue: false,
-    tokenAddress: "0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df",
+    tokenAddress: "0xd29687c813D741E2F938F4aC377128810E217b1b",
   },
   {
     label: "USDT",
