@@ -27,7 +27,7 @@ const supportedTokens = [
     decimals: 6,
     contractFunc: "buyTokensWithUsdc",
     needsValue: false,
-    tokenAddress: "0xd29687c813D741E2F938F4aC377128810E217b1b",
+    tokenAddress: "0xd56d8a21d012f3f1af134f9a881019c9a59953579b3a7bfb65723e604dfd2e8f",
   },
   {
     label: "USDT",
@@ -51,7 +51,7 @@ const supportedTokens = [
     decimals: 8,
     contractFunc: "buyTokensWithWbtc",
     needsValue: false,
-    tokenAddress: "0xd29687c813D741E2F938F4aC377128810E217b1b",
+    tokenAddress: "0x3C1BCa5a656e69edCD0D4E36BEbb3FcDAcA60Cf1",
   },
 ];
 
