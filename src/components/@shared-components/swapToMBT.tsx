@@ -27,7 +27,7 @@ const supportedTokens = [
     decimals: 6,
     contractFunc: "buyTokensWithUsdc",
     needsValue: false,
-    tokenAddress: "0xd56d8a21d012f3f1af134f9a881019c9a59953579b3a7bfb65723e604dfd2e8f",
+    tokenAddress: "0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4",
   },
   {
     label: "USDT",
@@ -149,6 +149,14 @@ export function SwapToMBTComponent() {
   }
 
   // --- Swap hook ---
+  console.log({
+    selectedLabel: selected.label,
+    selectedTokenAddress: selected.tokenAddress,
+    selectedContractFunc: selected.contractFunc,
+    swapArgs,
+    swapValue,
+  });
+  
   const {
     swap,
     hash,
