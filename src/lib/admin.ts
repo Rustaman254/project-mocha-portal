@@ -1,7 +1,7 @@
 // Admin utilities and configuration
 export const ADMIN_ADDRESSES = [
-  "0x842d803eB7d05D6Aa2DdB8c3Eb912e6d97ce31C4", // Deployer address
-  "0x842d803eb7d05d6aa2ddb8c3eb912e6d97ce31c4", // Deployer address lowercase
+  "0xc4110712cEf3e62b628e414Ebcc4fC0343c2fE4C", // Deployer address
+  "0xc4110712cEf3e62b628e414Ebcc4fC0343c2fE4C", // Deployer address lowercase
   "0x80569F788Ca7564429feB8Aabdd4Ff73e0aC98E0", // Secondary admin (Anwar)
   "0x80569f788ca7564429feb8aabdd4ff73e0ac98e0", // Secondary admin lowercase
   // Add more admin addresses here as needed
