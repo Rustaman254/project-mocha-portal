@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useAccount, useWriteContract, useBalance, useReadContract } from "wagmi";
 import { parseUnits, formatUnits } from "viem/utils";
 import { Button } from "@/components/ui/button";
+import { SwapToMBTComponent as SwapToMBTSection } from "./swapToMBT";
 import {
   Select,
   SelectContent,
@@ -79,13 +80,14 @@ export default function InvestTreesDialog({
     ],
     functionName: "allowance",
     args: address ? [address, TREE_CONTRACT_ADDRESS] : undefined,
-    watch: true,
+    query: { enabled: isConnected },
   });
 
   // Approve if necessary
-  const needsApproval = mbtAllowance !== undefined
-    ? BigInt(mbtAllowance) < mbtAmountParsed
-    : false;
+  const needsApproval =
+    mbtAllowance !== null && typeof mbtAllowance === 'bigint'
+      ? mbtAllowance < mbtAmountParsed
+      : true;
 
   // Write contract hooks
   const { writeContractAsync: approveAsync, isPending: isApprovePending } = useWriteContract();
@@ -183,14 +185,7 @@ export default function InvestTreesDialog({
           </div>
         ) : showSwap ? (
           /* Your swap UI as previously implemented here */
-          <SwapToMBTSection
-            fromToken={fromToken}
-            setFromToken={setFromToken}
-            amountUSD={trees * BONDPRICEUSD}
-            address={address}
-            onGoBack={() => setShowSwap(false)}
-            /* ...swap props */
-          />
+          <SwapToMBTSection />
         ) : (
           <div className="space-y-4 max-h-[calc(90vh-200px)] overflow-y-auto pt-2">
             {/* Balances, costs, etc */}

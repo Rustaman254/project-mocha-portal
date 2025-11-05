@@ -13,7 +13,16 @@ import {
 } from "@/components/ui/select";
 import { ArrowUpRight, ArrowDownLeft } from "lucide-react";
 
-const supportedTokens = [
+interface TokenConfig {
+  label: string;
+  paymentMethod: string;
+  decimals: number;
+  contractFunc: string;
+  needsValue: boolean;
+  tokenAddress?: `0x${string}`;
+}
+
+const supportedTokens: TokenConfig[] = [
   {
     label: "ETH",
     paymentMethod: "ETH",
@@ -81,8 +90,15 @@ export function SwapToMBTComponent() {
   const [notifySent, setNotifySent] = useState<boolean>(false);
   const { address } = useAccount();
 
-  const selected = supportedTokens.find((t) => t.label === fromToken);
-  if (!selected) return <div>Unsupported token selected</div>;
+  const selected = supportedTokens.find((t) => t.label === fromToken) as TokenConfig;
+
+  if (!selected) {
+    return <div>Unsupported token selected</div>; 
+  }
+
+  if (!selected) {
+    return <div>Unsupported token selected</div>; 
+  }
 
   // --- Fully explicit formattedAmount ---
   let roundedAmount: string = "";
@@ -110,7 +126,7 @@ export function SwapToMBTComponent() {
     address,
     token: selected.tokenAddress,
     query: {
-      enabled: selected.label !== "ETH" && !!address && !!selected.tokenAddress,
+      enabled: !!address && !!selected.tokenAddress,
     },
   });
   const rawEthBalance = ethBalanceQuery.data?.formatted ?? "0";
@@ -131,22 +147,17 @@ export function SwapToMBTComponent() {
   const formattedUsdValue = Number(formatUnits(usdValue, 18));
 
   // --- Args construction with full checks for contract expectations ---
-  const isValidAmount =
-    formattedAmount !== undefined && formattedAmount > BigInt(0);
-  const isValidTokensToReceive =
-    tokensToReceive !== undefined && tokensToReceive >= BigInt(0);
+  const isValidAmount = formattedAmount > BigInt(0);
+  const isValidTokensToReceive = tokensToReceive >= BigInt(0);
 
   let swapArgs: any[] = [];
-  let swapValue: bigint | undefined = undefined;
   if (selected.label === "ETH") {
-    swapArgs = [address, isValidTokensToReceive ? tokensToReceive : BigInt(0)];
-    swapValue = isValidAmount ? formattedAmount : BigInt(0);
+    swapArgs = [address, tokensToReceive];
   } else {
-    swapArgs = [
-      isValidAmount ? formattedAmount : BigInt(0),
-      isValidTokensToReceive ? tokensToReceive : BigInt(0),
-    ];
+    swapArgs = [formattedAmount, tokensToReceive];
   }
+
+  const swapValue = selected.needsValue ? formattedAmount : undefined;
 
   // --- Swap hook ---
   console.log({
@@ -168,7 +179,7 @@ export function SwapToMBTComponent() {
     selected.contractFunc,
     swapArgs,
     swapValue,
-    selected.label !== "ETH" ? selected.tokenAddress : undefined
+    selected.tokenAddress
   );
 
   // --- Fees ---
@@ -268,6 +279,10 @@ export function SwapToMBTComponent() {
   }, [error]);
 
   // --- Main render (unchanged display, disables as needed) ---
+  if (!selected) {
+    return <div>Unsupported token selected</div>; 
+  }
+
   return (
     <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mb-2 w-full">
       {!showPreview ? (
@@ -473,9 +488,34 @@ export function SwapToMBTComponent() {
           >
             Go Back
           </Button>
-          {isConfirmed && (
+          {isConfirmed && hash && (
             <div className="mt-3 p-2 rounded-lg bg-green-100 dark:bg-green-600 text-center text-green-800 dark:text-green-100 text-sm border border-dashed dark:border-green-500">
-              Swap confirmed! {hash}
+              <p className="font-semibold">Swap Confirmed!</p>
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `https://scrollscan.com/tx/${hash}`
+                    );
+                    toast.success("Copied to clipboard");
+                  }}
+                  className="text-xs"
+                >
+                  Copy Link
+                </Button>
+                <a
+                  href={`https://scrollscan.com/tx/${hash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs"
+                >
+                  <Button size="sm" variant="ghost">
+                    View on Scroll Explorer
+                  </Button>
+                </a>
+              </div>
             </div>
           )}
         </div>
