@@ -206,13 +206,22 @@ export default function InvestTreesDialog({
             {/* Amount input */}
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-medium">Trees to invest in</span>
-              <input
-                type="number"
-                min={1}
-                value={trees}
-                onChange={e => setTrees(Number(e.target.value))}
-                className="w-16 border-gray-200 dark:border-gray-600 rounded text-center"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  value={trees}
+                  onChange={e => setTrees(Number(e.target.value))}
+                  className="w-16 border-gray-200 dark:border-gray-600 rounded text-center"
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setTrees(Math.floor(mbtBalanceFormatted / BONDMBT))}
+                >
+                  Max
+                </Button>
+              </div>
             </div>
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-medium">Total MBT Needed</span>

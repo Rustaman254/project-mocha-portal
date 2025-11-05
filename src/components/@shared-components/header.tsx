@@ -53,7 +53,7 @@ export default function Header() {
   const toggleDarkMode = () => setDarkMode(!darkMode)
   const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen)
 
-  const { data: mbtBalance, error: mbtError, isLoading: mbtLoading } = useReadContract({
+  const { data: mbtBalance, error: mbtError, isLoading: mbtLoading, refetch: refetchMbtBalance } = useReadContract({
     address: MBT_ADDRESS,
     abi: MBT_TOKEN_ABI,
     functionName: "balanceOf",
@@ -61,6 +61,16 @@ export default function Header() {
     chainId: scroll.id,
     query: { enabled: isConnected && !!userAddress, retry: 3 },
   })
+
+  useEffect(() => {
+    const handleBalanceChanged = () => {
+      refetchMbtBalance();
+    };
+    window.addEventListener("balanceChanged", handleBalanceChanged);
+    return () => {
+      window.removeEventListener("balanceChanged", handleBalanceChanged);
+    };
+  }, [refetchMbtBalance]);
 
   const { data: totalActiveBonds, error: bondsError, isLoading: bondsLoading } = useReadContract({
     address: TREE_CONTRACT_ADDRESS,

@@ -105,7 +105,7 @@ export default function Dashboard() {
   const [previousCumulativeReturn, setPreviousCumulativeReturn] = useState(0);
 
   // Fetch contract data
-  const { data: activeFarmIds, isLoading: isLoadingActiveFarmIds, error: activeFarmIdsError } = useReadContract({
+  const { data: activeFarmIds, isLoading: isLoadingActiveFarmIds, error: activeFarmIdsError, refetch: refetchActiveFarmIds } = useReadContract({
     address: MOCHA_TREE_CONTRACT_ADDRESS,
     abi: MOCHA_TREE_CONTRACT_ABI,
     functionName: 'getActiveFarmIds',
@@ -123,7 +123,7 @@ export default function Dashboard() {
     }))
     : [];
 
-  const { data: farmConfigsData, isLoading: isLoadingFarmConfigs, error: farmConfigsError } = useReadContracts({
+  const { data: farmConfigsData, isLoading: isLoadingFarmConfigs, error: farmConfigsError, refetch: refetchFarmConfigs } = useReadContracts({
     contracts: farmConfigContracts,
   });
 
@@ -138,7 +138,7 @@ export default function Dashboard() {
     }))
     : [];
 
-  const { data: balanceData, isLoading: isLoadingBalances, error: balanceError } = useReadContracts({
+  const { data: balanceData, isLoading: isLoadingBalances, error: balanceError, refetch: refetchBalances } = useReadContracts({
     contracts: balanceContracts,
   });
 
@@ -336,8 +336,11 @@ export default function Dashboard() {
       setSelectedFarmName("");
       refetchMbtBalance();
       refetchAllowance();
+      refetchActiveFarmIds();
+      refetchFarmConfigs();
+      refetchBalances();
     }
-  }, [isPurchaseSuccess, refetchMbtBalance, refetchAllowance]);
+  }, [isPurchaseSuccess, refetchMbtBalance, refetchAllowance, refetchActiveFarmIds, refetchFarmConfigs, refetchBalances]);
 
   useEffect(() => {
     if (isApproveSuccess) {
@@ -427,7 +430,7 @@ export default function Dashboard() {
           footerLine2: "Based on your current holdings"
         },
         {
-          title: "Available MBTs",
+          title: "Estimated Annual Yield",
           value: `${annualInterestMBT.toFixed(2)} MBT`,
           isLoading: isLoadingBalances || isLoadingFarmConfigs,
           iconColor: annualInterestChange >= 0 ? "green" : "red",
@@ -476,7 +479,7 @@ export default function Dashboard() {
       footerLine2: "Based on your current holdings"
     },
     {
-      title: "Available MBTs",
+      title: "Estimated Annual Yield",
       value: `${annualInterestMBT.toFixed(2)} MBT`,
       isLoading: isLoadingBalances || isLoadingFarmConfigs,
       iconColor: "red",
@@ -531,7 +534,8 @@ export default function Dashboard() {
 
   // Handle max
   const setMaxAmount = () => {
-    const newAmount = maxMbtAllowed.toFixed(2);
+    const mbtBalanceFormatted = formatMbtBalance();
+    const newAmount = Math.min(maxMbtAllowed, parseFloat(mbtBalanceFormatted)).toFixed(2);
     setMbtAmount(newAmount);
     setPurchaseError("");
   };
@@ -539,6 +543,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (typeof window !== "undefined" && !localStorage.getItem(TOUR_KEY)) {
       startNextStep("mainTour");
+      localStorage.setItem(TOUR_KEY, "true");
     }
   }, [startNextStep]);
 

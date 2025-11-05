@@ -271,12 +271,10 @@ export function SwapToMBTComponent() {
   }
 
   useEffect(() => {
-    if (error) {
-      toast.error(error.message || "Transaction error occurred.", {
-        duration: 6000,
-      });
+    if (isConfirmed) {
+      window.dispatchEvent(new Event("balanceChanged"));
     }
-  }, [error]);
+  }, [isConfirmed]);
 
   // --- Main render (unchanged display, disables as needed) ---
   if (!selected) {
@@ -421,54 +419,6 @@ export function SwapToMBTComponent() {
               </span>
             </p>
           </div>
-          <div className="mb-4">
-            <div className="font-bold mb-1">Pay with (coming soon):</div>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                className="rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white py-1 px-4"
-                onClick={() => setOpenPaymentInfo("card")}
-              >
-                Bank Card
-              </Button>
-              <Button
-                type="button"
-                className="rounded-full bg-green-100 dark:bg-green-700 text-green-900 dark:text-green-200 py-1 px-4"
-                onClick={() => setOpenPaymentInfo("mpesa")}
-              >
-                M-Pesa
-              </Button>
-            </div>
-            {openPaymentInfo !== "none" && (
-              <div className="mt-2 bg-yellow-50 dark:bg-yellow-900 p-2 rounded shadow-inner">
-                <div className="mb-2 text-yellow-800 dark:text-yellow-300">
-                  This feature is not yet available. Enter your email to get notified when live.
-                </div>
-                {notifySent ? (
-                  <span className="text-green-600 dark:text-green-300 font-semibold">
-                    Thank you, you'll be notified!
-                  </span>
-                ) : (
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <input
-                      type="email"
-                      placeholder="your@email.com"
-                      value={notifyEmail}
-                      onChange={e => setNotifyEmail(e.target.value)}
-                      className="w-full py-1 px-2 rounded border border-gray-300 focus:outline-none dark:bg-gray-800 dark:border-gray-600"
-                    />
-                    <Button
-                      type="button"
-                      className="bg-amber-500 text-white px-4 py-1 rounded"
-                      onClick={handleNotify}
-                    >
-                      Notify Me
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
           <Button
             className="w-full bg-emerald-700 hover:bg-emerald-800 text-white py-3 text-sm"
             disabled={
@@ -520,6 +470,54 @@ export function SwapToMBTComponent() {
           )}
         </div>
       )}
+      <div className="mb-4">
+        <div className="font-bold mb-1">Pay with (coming soon):</div>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            className="rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white py-1 px-4"
+            onClick={() => setOpenPaymentInfo("card")}
+          >
+            Bank Card
+          </Button>
+          <Button
+            type="button"
+            className="rounded-full bg-green-100 dark:bg-green-700 text-green-900 dark:text-green-200 py-1 px-4"
+            onClick={() => setOpenPaymentInfo("mpesa")}
+          >
+            M-Pesa
+          </Button>
+        </div>
+        {openPaymentInfo !== "none" && (
+          <div className="mt-2 bg-yellow-50 dark:bg-yellow-900 p-2 rounded shadow-inner">
+            <div className="mb-2 text-yellow-800 dark:text-yellow-300">
+              This feature is not yet available. Enter your email to get notified when live.
+            </div>
+            {notifySent ? (
+              <span className="text-green-600 dark:text-green-300 font-semibold">
+                Thank you, you'll be notified!
+              </span>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="email"
+                  placeholder="your@email.com"
+                  value={notifyEmail}
+                  onChange={e => setNotifyEmail(e.target.value)}
+                  className="w-full py-1 px-2 rounded border border-gray-300 focus:outline-none dark:bg-gray-800 dark:border-gray-600"
+                />
+                <Button
+                  type="button"
+                  className="bg-amber-500 text-white px-4 py-1 rounded"
+                  onClick={handleNotify}
+                >
+                  Notify Me
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

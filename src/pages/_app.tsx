@@ -7,6 +7,7 @@ import { NextStep, NextStepProvider } from 'nextstepjs';
 const TOUR_KEY = "mainTourCompleted";
 
 function handleTourClose() {
+  debugger;
   localStorage.setItem(TOUR_KEY, "true");
 }
 
